@@ -1,5 +1,7 @@
 # my_coin WhitePaper (Draft)
 
+# ? The PDF version may be more readable 
+
 > This document is the **technical description / draft specification** of the my_coin protocol.  
 > It is intended for readers who already have a rough idea of what zero-knowledge proofs and Zcash-style anonymity systems can do (but are **not** required to understand low-level algorithms or curve details).
 
