@@ -2056,7 +2056,7 @@ From a protocol standpoint, once an intermediary is identified, they face a seem
 2. **Stonewall and refuse to admit “I am an intermediary”, only admit “this money is under my name”**  
    - The protocol + usage terms can only specify **civil** liabilities, not criminal sentences;  
    - If they refuse to admit being an intermediary, they may argue in criminal court that this is “unexplained income” rather than a structured laundering operation (the exact classification is up to the court);  
-   - The cost is: within their pre-agreed “liability cap”, they must承担 civil refund liability for the stolen funds — even if they actually only kept a small commission.
+   - The cost is: within their pre-agreed “liability cap”, they must undertake civil refund liability for the stolen funds — even if they actually only kept a small commission.
 
 So for an intermediary who has been caught, it is not as simple as “they will definitely name the next layer”.  
 In many legal environments:
@@ -2078,7 +2078,7 @@ This is something my_coin cannot solve with cryptography and must be stated hone
 Even in the worst-case scenario above, my_coin’s design still gives victims two baseline protections:
 
 - **(1) The victim can still recover funds from that intermediary (within the latter’s liability cap)**  
-  - If the intermediary refuses to name downstream participants, they must承担 civil liability according to the usage terms;  
+  - If the intermediary refuses to name downstream participants, they must undertake civil liability according to the usage terms;  
   - In other words, they cannot both refuse to point to downstream recipients *and* completely evade responsibility;  
   - For victims, this means:  
     - Even if the chain cannot be fully broken through to the final beneficiary, they can still recover some or all of their losses from that intermediary (depending on the intermediary’s “liability cap” and asset situation).
@@ -2090,7 +2090,7 @@ Even in the worst-case scenario above, my_coin’s design still gives victims tw
   - Expected payoff from being a first-hop intermediary:
     - Only a very small commission;
     - But once exposed, they must either:
-      -承担 civil liability for the full stolen amount up to their cap; or
+      -undertake civil liability for the full stolen amount up to their cap; or
       - Admit to being a laundering intermediary and face money-laundering criminal charges;
   - The more levels they participate in, the more likely they are to:
     - Be traced by a real upstream victim with SK;
@@ -2147,7 +2147,7 @@ You can read Chapter 3 while cross-referencing:
 The current repository implements a **single-node prototype** of the my_coin protocol. It is essentially a “local experimental environment,” with the goal:
 
 > To close the loop, at an engineering level, on the entire mechanism of  
-> 「BlueAccount / anonymous pool / anonymous payments / SK-based tracing」 —  
+> BlueAccount / anonymous pool / anonymous payments / SK-based tracing —  
 > not just keep it in the whitepaper, but actually run demos and tests.
 
 From the directory structure, the parts most relevant to this chapter are:
@@ -2432,17 +2432,25 @@ At the prototype level, `demo5.py` shows that this is practically implementable,
 - The project targets a Linux environment, ideally Ubuntu 24.04.  
 - My own development environment was: Windows 11, WSL 2, Ubuntu 24.04.
 
+> You may need to install the following dependencies first:
+
 ```bash
-# You may need to install the following dependencies first:
 sudo apt update && sudo apt upgrade
 sudo apt install -y python3.12 python3.12-venv python3.12-dev python3-pip
+```
 
-# From the project root, create and activate a virtual environment:
+> From the project root, create and activate a virtual environment:
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
+```
 
-# You only need a recent Rust toolchain and `maturin` if you want to rebuild the ZK module yourself
-# (see zkcrypto/ for details). Precompiled binaries are included for the common path.
+> You need a recent Rust toolchain and `maturin` if you want to rebuild the ZK module yourself
 
-# Then you can directly run the demos, for example:
+
+> Then you can directly run the demos, for example:
+
+```bash
 python demo/demo1_good.py
+```

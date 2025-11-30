@@ -1,0 +1,12 @@
+pdf-engine: xelatex
+
+variables:
+  mainfont: "Noto Sans"
+  sansfont: "Noto Sans"
+  monofont: "Noto Sans Mono"
+  mathfont: "Latin Modern Math"
+  CJKmainfont: "Noto Sans CJK SC"
+
+toc: true
+toc-depth: 6
+
