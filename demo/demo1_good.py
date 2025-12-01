@@ -11,7 +11,7 @@
 #     2) BlueApply2: derive a second blue account from the same
 #        master seed (with another token) and register it on chain.
 #
-#   Along the way we also show how the client:
+#   Along the way also show how the client:
 #     - derives accounts from MASTER_SEED instead of using ad-hoc keys,
 #     - asks the node for GetAccountInfo before sending applications,
 #     - updates its local wallet view only via the public API
@@ -122,7 +122,6 @@ def sync_account_from_node(client: Client, node: Node, addr: str, local_acct: Ac
     if isinstance(raw_resp, dict):
         if "ok" in raw_resp and raw_resp["ok"]:
             if "found" in raw_resp and raw_resp["found"]:
-                # Only in this case do we try the Merkle-verified fetch.
                 onchain_acct = client.fetch_account_from_node(node, addr)
 
     if onchain_acct is not None:

@@ -15,7 +15,7 @@
 #   4) Bob deposits 300 from his blue account to the anon pool again.
 #
 # The zk proof for AcctToAnon is not expanded in this demo (see demo3).
-# Here we focus on the zk proof used by AnonPay.
+# Here I focus on the zk proof used by AnonPay.
 
 import os
 import sys

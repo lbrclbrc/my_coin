@@ -2,10 +2,9 @@
 
 - A cryptocurrency protocol and prototype that supports anonymous payments **without any backdoor**, while still allowing users to use their own private keys to unlock their own anonymous payment history and help recover stolen funds.
 
-> **Where to start**
->
-> - If you want a general idea of what my_coin does and what this prototype currently supports, read this **README**.
-> - If you are already familiar with what zero-knowledge proofs and Zcash-style anonymity systems can do (no need to know their low-level internals) and want more protocol and prototype details, see **whitepaper_draft (md or pdf)** in the project root. 
+- **Where to start**
+  - If you want a general idea of what my_coin does and what this prototype currently supports, read this **README**.
+  - If you are already familiar with what zero-knowledge proofs and Zcash-style anonymity systems can do (no need to know their low-level internals) and want more protocol and prototype details, see **whitepaper_draft (md or pdf)** in the project root. 
 
 ---
 
