@@ -635,10 +635,10 @@ The transparent-transfer layer behaves almost the same as Ethereum:
 There is nothing particularly novel here; this subsection is mainly to clarify that:  
 on the “non-anonymous, transparent layer”, my_coin’s accounting and ordering behavior matches common account-based chains, and this layer serves as a foundation for the anonymous-layer design that follows.
 
-### 3.5 Anonymous commitment layer: AC, MerkleTreeCommit, and ACCT
+### 3.5 Anonymous commitment layer: AC and MerkleTreeCommit
 
 The anonymous layer of my_coin is built around **anonymous commitments (ACs)**. An AC is a commitment hash, and its plaintext is called a `note`.  
-When a non-anonymous account deposits funds “into the anonymous layer”, this operation is called **ACCT** (account to anonymous commitment).
+When a non-anonymous account deposits funds “into the anonymous layer”, this operation is called an **account-to-anonymous deposit**.
 
 #### 3.5.1 MerkleTreeCommit and the structure of anonymous commitments
 
@@ -671,7 +671,7 @@ The four fields of the note and `sk` itself are not public.
 
 **Implementation navigation (ZK details that will be used later in the anonymous-pay section):**
 
-- ZK circuits related to the anonymous layer (not ACCT in this subsection, but anonymous pay and internal transfers):
+- ZK circuits related to the anonymous layer (not account-to-anonymous deposits in this subsection, but anonymous pay and internal transfers):
   - `zkcrypto/src/zkproof_for_anon_pay_gen.rs`
   - `zkcrypto/src/zkproof_for_anon_pay_verify.rs`
 - Protocol documentation (logical description of the anonymous-pay circuit):
@@ -703,12 +703,12 @@ not:
 
 > “Sending funds anonymously to someone else.”
 
-This principle is hard-coded into the ZK constraints for ACCT.  
-The reasons for this will be explained in detail in Chapter 4. For now, this subsection just states the principle and describes the structure of ACCT under this rule.
+This principle is hard-coded into the ZK constraints for the **account-to-anonymous deposit circuit**.  
+The reasons for this will be explained in detail in Chapter 4. For now, this subsection just states the principle and describes the structure of the deposit under this rule.
 
 ---
 
-#### 3.5.3 ACCT: ZK statement for “non-anonymous account → single anonymous commitment”
+#### 3.5.3 Account-to-anonymous deposit: ZK statement for “non-anonymous account → single anonymous commitment”
 
 This subsection only considers the simplest case:
 
@@ -717,7 +717,7 @@ This subsection only considers the simplest case:
 
 Extensions such as multiple inputs/outputs and change will be introduced in the anonymous-pay section later. Here, the goal is to clarify the semantics of the basic “account → single AC” proof.
 
-##### 3.5.3.1 Typical ACCT scenario
+##### 3.5.3.1 Typical deposit scenario
 
 - There is a non-anonymous account, whose on-chain address is `ADDR`;
 - The account holder wants to move some public balance `balance` from this address into the anonymous layer;
@@ -727,7 +727,7 @@ Extensions such as multiple inputs/outputs and change will be introduced in the 
   - When this AC is created, the secret `sk` controlling this AC is held by the same entity who controls `ADDR`;
   - That is: generating an AC does not perform ownership transfer.
 
-##### 3.5.3.2 Public inputs and secret inputs in ACCT
+##### 3.5.3.2 Public inputs and secret inputs in the deposit circuit
 
 In the corresponding ZK proof, the key inputs can be divided as follows:
 
@@ -736,7 +736,7 @@ In the corresponding ZK proof, the key inputs can be divided as follows:
 - `balance`: the amount being deposited into the anonymous layer;
 - `nonce`: the new note’s own counter (note: this is not the account’s `nonce`, but the note’s field);
 - `src`: the source label of the new note (encoded to reflect “which account it comes from”);
-- `ADDR`: the non-anonymous account address that initiates ACCT (the public paying address);
+- `ADDR`: the non-anonymous account address that initiates the deposit (the public paying address);
 - `AC`: the value of the anonymous commitment inserted into `MerkleTreeCommit`.
 
 **Secret inputs (witness):**
@@ -746,7 +746,7 @@ In the corresponding ZK proof, the key inputs can be divided as follows:
 
 ##### 3.5.3.3 Two statements the ZK circuit must prove
 
-The ACCT circuit actually enforces **two** logical statements, and it enforces that **both** use the same `sk` in the proof.
+The deposit circuit actually enforces **two** logical statements, and it enforces that **both** use the same `sk` in the proof.
 
 **First statement: `sk → PK → ADDR` (proving who is paying)**
 
@@ -793,11 +793,11 @@ Therefore:
 - The `sk` controlling the new AC is the same as that of `ADDR`—the same controlling entity;
 - In this “generate AC” step, it is impossible to complete “giving the money to another person” as an ownership transfer—because the circuit forces `sk` to be the same.
 
-Why the protocol insists on this design (no ownership transfer when generating an AC), and how genuine hidden-identity transfers are implemented **inside** the anonymous layer, will be explained in later sections and in Chapter 4. This subsection focuses on explaining the structure and ZK statement of ACCT.
+Why the protocol insists on this design (no ownership transfer when generating an AC), and how genuine hidden-identity transfers are implemented **inside** the anonymous layer, will be explained in later sections and in Chapter 4. This subsection focuses on explaining the structure and ZK statement of the account-to-anonymous deposit.
 
-**Implementation navigation (ZK details for ACCT):**
+**Implementation navigation (ZK details for the account-to-anonymous deposit circuit):**
 
-- Rust-side ZK proof generation and verification for ACCT:
+- Rust-side ZK proof generation and verification for deposits from an account into a single anonymous commitment:
   - `zkcrypto/src/zkproof_for_acct_to_anon_tx_gen.rs`
   - `zkcrypto/src/zkproof_for_acct_to_anon_tx_verifier.rs`
   - `zkcrypto/src/zkproof_for_acct_to_anon_tx_evil_gen.rs` (used for malicious paths / counterexamples)
@@ -807,6 +807,7 @@ Why the protocol insists on this design (no ownership transfer when generating a
   - `tests/rust_api_tests/zkproof_acct_to_anon_tx_tests.py`
 
 ---
+
 
 ### 3.6 Anonymous Pay: single old AC → CommitChange & public address
 
