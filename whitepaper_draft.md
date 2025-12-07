@@ -17,7 +17,7 @@ This document is divided into seven parts, corresponding to the following readin
    - From the perspective of the state machine and transaction types, a high-level description of my_coin’s core mechanisms (account coloring, anonymous pool / non-anonymous layer, anonymous payments, accountability, etc.).
 4. **Why This Design: Attack–Defense and Incentives**  
    - Explaining one by one those rules that may look “strange” at first sight (KYC + user agreement, Blindˢ, MessageS, masterSeed derivation, dynamic custody fee, etc.), 
-   and what attack paths would appear if we *didn’t* do it this way.
+   and what attack paths would appear if my_coin *didn’t* do it this way.
    - This part explains how the "strange" rules make my_coin anti-money-laundering friendly.
    
 5. **Prototype Coverage: What Has Been Implemented / Not Implemented**  
@@ -285,9 +285,9 @@ The result is:
 
 ## ##########################################################################################################################################
 
-## 2. Problems We Aim to Solve: Target Profile of my_coin
+## 2. Problems I Aim to Solve: Target Profile of my_coin
 
-### 2.1 Protocol Goals (What we want to achieve)
+### 2.1 Protocol Goals (What I want to achieve)
 
 - **G1: Decentralized, backdoor-free cryptographic anonymity**  
   - Anonymity should rely entirely on public algorithms and the cryptographic structure itself, and not on any centralized “viewing key”, regulatory backdoor, or super decryption key.  
@@ -323,7 +323,7 @@ The result is:
 > This chapter mainly explains what the protocol *actually specifies* at a high level, without going too much into *why* it is designed this way.  
 > For the reasoning behind the design, please see Chapter 4.
 
-> my_coin uses ECC over the Pallas–Vesta curve. For Merkle trees and other places where hashes are computed, it uses the Poseidon hash function, in order to be friendly to zero-knowledge proofs (this project uses Halo2 ZK). In the future, we may consider upgrading to ZK-STARKs to achieve quantum resistance.
+> my_coin uses ECC over the Pallas–Vesta curve. For Merkle trees and other places where hashes are computed, it uses the Poseidon hash function, in order to be friendly to zero-knowledge proofs (this project uses Halo2 ZK). In the future, I may consider upgrading to ZK-STARKs to achieve quantum resistance.
 
 > Due to time constraints, I have not yet written a fully complete and rigorous protocol specification. This chapter mainly introduces the core mechanism framework and may lack some specific details.
 
@@ -439,7 +439,7 @@ More concretely, there are two cases:
   - When reporting, the originating party must additionally use their keys together with a zero-knowledge proof to show that  
     “a certain anonymous output is in fact derived from a key system they control”;
   - The concrete structure of anonymous payments and the exact proving method will be described separately later.  
-    Here we only require that: a valid report must, via cryptography, link “this anonymous payment” to “the reporter’s account system”.
+    Here my_coin only require that: a valid report must, via cryptography, link “this anonymous payment” to “the reporter’s account system”.
 
 Only reports satisfying the above conditions count as “reports” under the terms of use, and can be used to classify funds as stolen / suspicious.
 
@@ -511,7 +511,7 @@ After completing 3.2.1 and 3.2.2, we move on to the Clerk and on-chain part.
 
 ### 3.3 Subsequent blue addresses: token choice, PASTA-curve derivation, and the new ZK statement
 
-When a single real-world identity wants to open multiple `color = 1` addresses, we enter the “subsequent blue addresses” setting. Here it is not just “recommending” that you derive addresses in a certain way: the protocol **requires** that every subsequent blue-address upgrade request must include a ZK proof showing that the SK / address was indeed derived from the same `master_seed` according to the specified rule.
+When a single real-world identity wants to open multiple `color = 1` addresses, they must enter the “subsequent blue addresses” setting. Here it is not just “recommending” that you derive addresses in a certain way: the protocol **requires** that every subsequent blue-address upgrade request must include a ZK proof showing that the SK / address was indeed derived from the same `master_seed` according to the specified rule.
 
 #### 3.3.1 Token choice and derivation rule (Poseidon + PASTA)
 
@@ -538,7 +538,7 @@ Thus, starting from the same `master_seed`, a given `token` uniquely determines 
 
 For each subsequent blue address, when the user applies to “upgrade this `address` to `color = 1` and write a particular `token` into it”, the request must be accompanied by a new ZK proof. This proof is no longer just “I know a password”; instead it is closer to “I know a `master_seed`, and this new address really is derived from that same `master_seed`”.
 
-We can decompose it like this:
+It can be decomposed like this:
 
 - Public inputs include:
   - The `address` being upgraded (the new address);
@@ -2432,6 +2432,7 @@ At the prototype level, `demo5.py` shows that this is practically implementable,
 ## 6. How to run the demos
 
 - The project targets a Linux environment, ideally Ubuntu 24.04.  
+
 - My own development environment was: Windows 11, WSL 2, Ubuntu 24.04.
 
 - You may need to install the following dependencies first:
