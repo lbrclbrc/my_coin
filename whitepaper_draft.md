@@ -1,7 +1,5 @@
 # my_coin WhitePaper (Draft)
 
-# ? The PDF version may be more readable 
-
 > This document is the **technical description / draft specification** of the my_coin protocol.  
 > It is intended for readers who already have a rough idea of what zero-knowledge proofs and Zcash-style anonymity systems can do (but are **not** required to understand low-level algorithms or curve details).
 
@@ -2449,6 +2447,10 @@ source .venv/bin/activate
 ```
 
 - You need a recent Rust toolchain and `maturin` if you want to rebuild the ZK module yourself
+```bash
+cd zkcrypto
+maturin develop -- release
+```
 
 
 - Then you can directly run the demos, for example:

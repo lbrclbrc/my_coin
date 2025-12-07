@@ -340,7 +340,7 @@ def demo4_good_test():
         note_commit_hex=alice_note_commit,
         receiver_addr=bob_blue.addr,
         node=node,
-        explain_proof=True,  # 只在第一层展示一次 ZK 说明
+        explain_proof=True,
     )
     print()
 
