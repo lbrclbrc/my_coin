@@ -18,7 +18,7 @@ This document is divided into seven parts, corresponding to the following readin
 4. **Why This Design: Attack–Defense and Incentives**  
    - Explaining one by one those rules that may look “strange” at first sight (KYC + user agreement, Blindˢ, MessageS, masterSeed derivation, dynamic custody fee, etc.), 
    and what attack paths would appear if we *didn’t* do it this way.
-   - This part explain how the "strange" rules make my_coin anti-money-laundering friendly.
+   - This part explains how the "strange" rules make my_coin anti-money-laundering friendly.
    
 5. **Prototype Coverage: What Has Been Implemented / Not Implemented**  
    - Mapping the protocol mechanisms in Part 3 to the current Python + Rust single-node prototype, and explaining what is already realized and what is still only in the design phase.
