@@ -564,7 +564,6 @@ fn zkproof_for_anon_pay_from_bytes(
     sin_path_siblings: &[Vec<u8>],
     sin_path_dirs: &[u8],
 ) -> Result<Vec<u8>, String> {
-
     if pin_commit_root.len() != 32 { return Err("pin_commit_root must be 32 bytes".to_string()); }
     if pin_nullifier.len() != 32 { return Err("pin_nullifier must be 32 bytes".to_string()); }
     if pin_commit_change.len() != 32 { return Err("pin_commit_change must be 32 bytes".to_string()); }

@@ -12,45 +12,49 @@
 #      - Call verify_zkproof_for_acct_to_anon_tx(...) with matching public inputs.
 #      - Expect the verifier to accept the proof.
 #
-#   2) "Evil" proof where the commitment key and address key differ
+#   2) Regression test with an "evil" proof where the commitment key and
+#      address key differ
 #      - Use two independent keypairs:
-#          * sk_commit drives anon_commit.
-#          * sk_addr drives addr.
+#          sk_commit drives anon_commit.
+#          sk_addr drives addr.
 #      - Use zkcrypto.get_evil_zkproof_for_acct_to_anon_tx(...) to construct
-#        a proof that passes verification even though sk_commit != sk_addr.
-#      - Verify the proof and confirm that:
-#          * The verifier accepts the proof (ok_evil == True).
-#          * A separate semantic check f_check_intended(...) shows that the
-#            intended relation "addr and anon_commit share the same sk" is false.
-#      - This demonstrates that the circuit does not enforce "same secret key"
-#        between addr and anon_commit.
+#        a proof that *would* pass verification if the circuit forgot to link
+#        addr and anon_commit to the same secret key.
+#      - Run the verifier on this "evil" proof and confirm that:
+#          The verifier REJECTS the proof (ok_evil == False).
+#          A separate semantic check f_check_intended(...) shows what the
+#          intended relation is ("addr and anon_commit share the same sk").
+#      - If this test ever starts passing again (ok_evil == True), it means
+#        we reintroduced the old bug and the circuit no longer enforces
+#        the "same secret key" constraint between addr and anon_commit.
 #
 #   3) Negative tests for public input mismatches and tampering
 #      - Wrong addr:
-#          * Replace addr with an unrelated address and verify the proof.
-#          * Expect the verifier to reject.
+#          Replace addr with an unrelated address and verify the proof.
+#          Expect the verifier to reject.
 #      - Wrong anon_commit:
-#          * Flip one bit in anon_commit and verify the proof.
-#          * Expect the verifier to reject.
+#          Flip one bit in anon_commit and verify the proof.
+#          Expect the verifier to reject.
 #      - anon_commit from another sk:
-#          * Recompute anon_commit using a different secret key but keep addr,
+#          Recompute anon_commit using a different secret key but keep addr,
 #            value, and nonce unchanged.
-#          * Expect the verifier to reject.
+#          Expect the verifier to reject.
 #      - Wrong value:
-#          * Change the public value by +1 and verify.
-#          * Expect the verifier to reject.
+#          Change the public value by +1 and verify.
+#          Expect the verifier to reject.
 #      - Wrong nonce:
-#          * Change the public nonce by +1 and verify.
-#          * Expect the verifier to reject.
+#          Change the public nonce by +1 and verify.
+#          Expect the verifier to reject.
 #      - Tampered proof:
-#          * Flip one bit in the proof bytes and verify.
-#          * Expect the verifier to reject.
+#          Flip one bit in the proof bytes and verify.
+#          Expect the verifier to reject.
 #
 # The goal of these tests is to:
 #   - Confirm that the honest flow is accepted.
-#   - Confirm that "evil" proofs produced by a dedicated helper reveal a
-#     missing constraint in the circuit design.
+#   - Guard against regressions where "evil" proofs produced by a dedicated
+#     helper would start passing (violating the intended "same sk" relation).
 #   - Confirm that simple public-input or proof tampering is rejected.
+
 
 
 import os, sys
@@ -161,12 +165,17 @@ def main():
     print("verify(correct) ->", ok)
     print()
 
-    # --------- EVIL CASE: sk_commit != sk_addr but proof still verifies ----------
+    # --------- EVIL CASE (regression): sk_commit != sk_addr; verifier must reject ----------
 
     # This case uses a helper from zkcrypto that intentionally builds
     # a proof where the commitment is driven by sk_commit, while the
-    # address is driven by sk_addr. It demonstrates that the circuit
-    # does not enforce "same secret key" for addr and anon_commit.
+    # address is driven by sk_addr.
+    # In the old buggy version of the circuit, such a proof could still
+    # pass verification (the "same secret key" link was missing).
+    # After the fix, we expect the verifier to REJECT this proof.
+    # If ok_evil ever becomes True again, it means we reintroduced the
+    # old bug and the circuit no longer enforces "same secret key" for
+    # addr and anon_commit.
     kp_commit = EccKeypair()
     sk_commit_bytes = kp_commit.get_sk()
     pk_commit_bytes = kp_commit.get_pk_from_sk()
@@ -221,6 +230,8 @@ def main():
     print("verify(evil) ->", ok_evil)
     print("intended f(same sk) ->", intended_ok)
     print()
+    # NOTE: ok_evil should be False after the fix; True would indicate a regression.
+
 
     # --------- negative test 1: wrong addr (public input mismatch) ----------
 
