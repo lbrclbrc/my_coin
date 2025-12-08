@@ -1,13 +1,13 @@
 # my_coin WhitePaper (Draft)
 
 > This document is the **technical description / draft specification** of the my_coin protocol.  
-> It is intended for readers who already have a rough idea of what zero-knowledge proofs and Zcash-style anonymity systems can do (but are **not** required to understand low-level algorithms or curve details).
+> It is intended for readers who already have a rough idea of what zero-knowledge proofs and Zcash-style anonymity systems can do (but are **not** required to understand low-level ZK algorithms or curve details).
 
 ---
 
 ## Roadmap / Document Structure
 
-This document is divided into seven parts, corresponding to the following reading path:
+This document is divided into 6 parts, corresponding to the following reading path:
 
 1. **Background and Status Quo**  
    - What is the structural tension today between “privacy” and “anti–money laundering” in payment systems?
@@ -16,7 +16,7 @@ This document is divided into seven parts, corresponding to the following readin
 3. **Overview of the Protocol Mechanism: How my_coin Works**  
    - From the perspective of the state machine and transaction types, a high-level description of my_coin’s core mechanisms (account coloring, anonymous pool / non-anonymous layer, anonymous payments, accountability, etc.).
 4. **Why This Design: Attack–Defense and Incentives**  
-   - Explaining one by one those rules that may look “strange” at first sight (KYC + user agreement, Blindˢ, MessageS, masterSeed derivation, dynamic custody fee, etc.), 
+   - Explaining one by one those rules that may look “strange” at first sight (KYC + user agreement, blind_change, S1 & S2, masterSeed derivation, dynamic custody fee, etc.), 
    and what attack paths would appear if my_coin *didn’t* do it this way.
    - This part explains how the "strange" rules make my_coin anti-money-laundering friendly.
    
@@ -36,7 +36,7 @@ This section first lays out “the main kinds of payment / settlement systems th
   - Relying on whether banks, clearing houses, and third-party service providers are **willing and able to behave properly**;
 - At the level of **cryptography and system design**, ordinary users have no “decentralized privacy guarantee” at all:
   - Once there is abuse, data leakage, or forced data sharing inside these institutions,
-  - Users almost have no technical means to defend or audit; they can only rely on external regulation and ex-post accountability.
+  - Users have almost no technical means to defend or audit; they can only rely on external regulation and ex-post accountability.
 
 ---
 
@@ -61,7 +61,7 @@ Take Bitcoin / Ethereum-style public blockchains as examples (ignoring privacy c
 So:
 
 > Unless you have extremely strict operational discipline and fully anonymous in-flow and usage patterns,  
-> once identity is exposed at a single point, your later fund usage is very easy to be tracked and analyzed in the long term.
+> once identity is exposed at a single point, it is very easy to track and analyze your later fund usage in the long term.
 
 ---
 
@@ -84,7 +84,7 @@ From a technical perspective, they indeed do quite well in the dimension of “p
     - Or once they discover that some funds have passed through a mixer or certain privacy pools, they directly refuse to receive them or require complicated source-of-funds documentation;
 - For hackers / scammers / extortion groups and money-laundering intermediaries:
   - Once they successfully send stolen funds into privacy coins / mixing pools:
-    - In many cases they can **completely disappear from the public view**;
+    - In many cases they can **completely disappear from public view**;
     - Afterwards they can slowly cash out the funds via various off-chain channels and OTC trades;
     - Tracking becomes much harder compared to transparent ledgers.
 
@@ -116,7 +116,7 @@ In order to find trade-offs between “privacy” and “regulation / AML”, th
 
 ##### 1.4.2.1 “Compliant CoinJoin” as in Wasabi Wallet
 
-A relatively typical approach today is to wrap traditional CoinJoin with a layer of “only accept clean money” risk control. The zkSNACKs coordinator in Wasabi Wallet is a representative example.
+A relatively typical approach today is to wrap traditional CoinJoin with a layer of “only accept clean money” risk control. Wasabi Wallet is a representative example.
 
 Very roughly:
 
@@ -176,7 +176,7 @@ Then the interval T ∈ [0, 5] is the “dangerous window” for this money. On 
   - Once `commit₁` is flagged as stolen at T = 5, we also blacklist all pool states, newly created commitments, and withdrawals that could be related to it during that window;  
   - We can also propagate further along the graph: public accounts that received such withdrawn funds during the window, and a long chain of accounts connected to them, can also be automatically included in high-risk sets.
 
-Next we look at how these two strategies behave in practice.
+Next, let's look at how these two strategies behave in practice.
 
 ---
 
@@ -200,7 +200,7 @@ From the attacker’s perspective, this conservative strategy is very friendly:
 
 > At T = 0, they receive stolen funds and deposit them as `commit₁`;  
 > By T = 3, they have already finished splitting and withdrawing inside the privacy pool; the stolen funds have left their original shape;  
-> At T = 5, when `commit₁` is finally blacklisted, the useful part of the value has long gone.
+> At T = 5, when `commit₁` is finally blacklisted, the useful part of the value has long since gone.
 
 At this point, what remains in the blacklist is essentially an **already-spent deposit record**, which no longer imposes real constraints on the attacker. This is very similar to the **Maginot Line** effect:
 
@@ -213,7 +213,7 @@ The defensive line looks impressive, but in actual combat, the critical path has
 Now suppose the protocol does **not** adopt the conservative approach but instead uses the **aggressive strategy** defined above:
 
 > Once `commit₁` is flagged at T = 5,  
-> we blacklist (or at least graylist) all commitments created during T ∈ [0, 5] and all withdrawn funds in that period.
+> The strategy blacklist (or at least graylist) all commitments created during T ∈ [0, 5] and all withdrawn funds in that period.
 
 In the real world, scam / ransomware / card-fraud money flows into financial systems **every day**, not just occasionally:
 
@@ -298,12 +298,12 @@ The result is:
 
 - **G3: Provide anonymous payments without lowering the barrier to money laundering**  
   - my_coin is intended to provide “anonymous payments usable by rule-abiding users”, not to make money laundering easier than it is today.  
-  - In the ideal case, the difficulty for an attacker to launder money via my_coin **should not be significantly lower than** using a combination of traditional banking plus non-mixing Bitcoin.
+  - In the ideal case, the difficulty for an attacker to launder money via my_coin **should not be significantly lower than** the difficulty of laundering money using a combination of traditional banking plus non-mixing Bitcoin.
 
 - **G4: Payments must be sufficiently convenient and fast**  
   - When using anonymous payments, the complexity and confirmation time should be as close as possible to PayPal / credit-card payments.
 
-- **G5: Provide a technical basis for ex-post tracing and “recovery of stolen funds”, assuming the private key still has a backup**  
+- **G5: Provide a technical basis for ex-post tracing and “recovery of stolen funds”, assuming a backup of the private key still exists**  
   - The goal is that, when funds are stolen or misused, there is a strong enough on-chain evidential basis for victims and judicial authorities so that “recovery / accountability” has real technical support in actual legal and procedural flows.
 
 ---
@@ -344,12 +344,12 @@ my_coin also uses an account-based model, but each account has four extra fields
 
 **Initialization rules:**
 
-- For a new account, or an account that has never applied for anything, the defaults are:
+- For a new account (an account whose on-chain state has not been modified before), the defaults are:
   - `color = 0`;
   - `ID` is considered unset;
   - `master_seed_hash` is considered unset;
   - `token` defaults to a value of “32 bytes of all zeros”.
-- As long as `color ≠ 0`, an `ID` must be written; this is a hard constraint at the chain level;
+- As long as `color ≠ 0`, an `ID` must be set; this is a hard constraint at the chain level;
 - When an account is upgraded to `color = 1`, the node must permanently record the binding between this address and `(ID, master_seed_hash, token)` in its state, for later compliance, audit, and accountability.
 
 ---
@@ -357,31 +357,46 @@ my_coin also uses an account-based model, but each account has four extra fields
 ### 3.2 How a Normal User Upgrades `color = 0` to `color = 1`
 
 > This part is mostly implemented in the prototype, with some minor simplifications.
+> Here it describes the **first** blue-account upgrade for a given real-world identity (the first `color = 1` account with `token = 0`).
+> Subsequent blue addresses for the same identity are described in Section 3.3.
 
 Upgrading an account from `color = 0` to `color = 1` consists of four steps:
 
-1. Locally derive `master_seed_hash` from a password and generate a ZK proof;
+1. Locally derive `master_seed_hash`, the first scalar `SK` and public key `PK` from a password and generate a ZK proof;
 2. The user signs the my_coin terms of use;
 3. The Clerk performs offline KYC and confirms the identity;
-4. The Clerk submits an upgrade request on-chain, a cooling-off period elapses, and then the account officially becomes `color = 1`.
+4. A blue-address upgrade request, endorsed by the Clerk’s signature, is submitted on-chain; a cooling-off period elapses, and then the account officially becomes `color = 1`.
 
-#### 3.2.1 Local Cryptographic Steps: password → master_seed → master_seed_hash + ZK Proof
+#### 3.2.1 Local Cryptographic Steps: password → master_seed → master_seed_hash, SK, PK + ZK Proof
 
-What the user does on their own device:
+On the user’s own device, for the **first blue account**, the local cryptographic steps are:
 
 1. Choose a password that exists only in their own memory;
-2. Use Poseidon hashing twice:
-   - First: hash the password with Poseidon to obtain `master_seed`;
-   - Second: hash `master_seed` with Poseidon to obtain `master_seed_hash`;
-3. Construct a zero-knowledge proof for the following statement:
+2. Apply Poseidon once to this password to obtain `master_seed`;
+3. Apply Poseidon once more to `master_seed` to obtain `master_seed_hash`;
+4. Fix `token = 0` for this first blue address;
+5. Concatenate `master_seed` with this `token` in the way specified by the protocol, and apply Poseidon hash once to the concatenated input to obtain a private scalar `SK`;
+6. Let `G` be the fixed generator point on the elliptic curve used by my_coin; compute the corresponding public key point
+
+   > `PK = SK · G`.
+
+7. Construct a zero-knowledge proof for the following statement (informally):
 
 > There exists a password that I know,  
-> such that hashing this password once with Poseidon yields some `master_seed`,  
-> hashing that `master_seed` once more with Poseidon  
-> yields exactly the `master_seed_hash` I am now publishing.
+> such that applying Poseidon once to this password yields some `master_seed`,  
+> applying Poseidon once to this `master_seed` yields the currently public `master_seed_hash`,  
+> and, with `token = 0`, concatenating this `master_seed` with `token` in the prescribed way  
+> and hashing once more with Poseidon yields a private scalar `SK` such that  
+> `SK · G` equals the currently public `PK`.
 
-On-chain, only `master_seed_hash` and this ZK proof are public;  
-the password and `master_seed` are never revealed.
+In this first blue-address upgrade request, the public input values to the ZK proof are:
+
+- `master_seed_hash`;
+- `token = 0`;
+- the elliptic-curve public key `PK`;
+- and the ZK proof itself.
+
+The password and `master_seed` are never revealed; `SK` and all other intermediates remain internal to the circuit.
 
 **Implementation navigation (ZK details):**
 
@@ -390,7 +405,7 @@ the password and `master_seed` are never revealed.
   - `zkcrypto/src/zkproof_for_ii_blue_apply_verifier.rs`
 - Protocol documentation (logic and circuit constraint explanations):
   - See the documents under the `docs/blue_apply/` directory
-- Tests calling the Rust ZK APIs (to check that generation / verification behaves as expected):
+- Tests calling the Rust ZK APIs (to check that generation and verification behave as expected):
   - `tests/rust_api_tests/zkproof_ii_blue_apply_tests.py`
 
 ---
@@ -404,7 +419,7 @@ Before the Clerk helps the user perform the on-chain upgrade, the user must sign
 The user declares and agrees that:
 
 - They do in fact know the password behind the `master_seed_hash` they submitted;
-- The zero-knowledge proof submitted to the Clerk is generated based on this password that they themselves control,  
+- Any zero-knowledge proof they submit as part of a blue-address application is generated based on this password that they themselves control,  
   not a proof text given by someone else which they simply forwarded without understanding;
 - They understand and accept that if they later forget this password, it will not only make “asset recovery” difficult,  
   but will also directly affect their ability to present evidence and allocate responsibility in cases involving stolen or suspicious funds.
@@ -439,7 +454,7 @@ More concretely, there are two cases:
   - When reporting, the originating party must additionally use their keys together with a zero-knowledge proof to show that  
     “a certain anonymous output is in fact derived from a key system they control”;
   - The concrete structure of anonymous payments and the exact proving method will be described separately later.  
-    Here my_coin only require that: a valid report must, via cryptography, link “this anonymous payment” to “the reporter’s account system”.
+    my_coin only requires that a valid report, via cryptography, link “this anonymous payment” to “the reporter’s account system”.
 
 Only reports satisfying the above conditions count as “reports” under the terms of use, and can be used to classify funds as stolen / suspicious.
 
@@ -485,33 +500,38 @@ To prevent this risk from growing without bound, the terms require:
 
 #### 3.2.3 Clerk, KYC, Cooling-Off Period, and the First Blue Account (`token = 0`)
 
-After completing 3.2.1 and 3.2.2, we move on to the Clerk and on-chain part.
+Let's move on to the Clerk and on-chain part.
 
-**Rules for the first `color = 1` account:**
+**Rules for the first upgrade to `color = 1` (the first blue account, `token = 0`):**
 
-- This account’s `token` must be “32 bytes of all zeros”;
-- During the upgrade, the following fields are written:
-  - `color`: apply to upgrade from 0 to 1;
+- For the first blue account of a given real-world identity, the derivation rule described in Section 3.2.1 is applied with `token = 0`,  
+  and the resulting public key `PK` is used to define the account address as `address = Poseidon(PK)` on chain;
+- When this first account is successfully upgraded from `color = 0` to `color = 1` (after the cooling-off period), its on-chain state for that `address` is updated as follows:
+  - `color`: set from 0 to 1;
   - `ID`: the real-world identity identifier in the offline identity system;
   - `master_seed_hash`: the value published by the user and validated via ZK proof;
   - `token`: 0 (32 bytes of all zeros).
+- This first `color = 1` account’s `token` must be “32 bytes of all zeros”.
 
 **Process summary:**
 
-1. The user submits real-name (KYC) documents to the Clerk, along with `master_seed_hash` and its ZK proof, and confirms that they have signed the terms of use;
-2. The Clerk completes offline KYC and confirms that the ID matches the user;
-3. Using their official credential / certificate, the Clerk submits an upgrade transaction on-chain to update the account’s state as above;
-4. The chain verifies the ZK proof;
+1. The user generates `master_seed_hash`, chooses `token = 0`, derives the corresponding public key `PK` and the ZK proof described in Section 3.2.1, and confirms that they have signed the terms of use and completed offline KYC with the Clerk;
+2. The Clerk, after finishing offline KYC and checking that the real-world identity matches, uses their official key to sign this first blue-address upgrade request (which contains `master_seed_hash`, `token = 0`, `PK`, and the ZK proof);
+3. This Clerk-endorsed upgrade request is submitted to the blockchain node as an on-chain transaction (it may be broadcast by the user, by the Clerk, or by any relay node; what matters is that it carries a valid Clerk signature);
+4. The chain verifies the ZK proof against these public values and verifies the Clerk’s signature;
 5. The upgrade request enters a cooling-off period:
-   - During the cooling-off period, the Clerk monitors all upgrade requests issued using their official credential;
-   - If any request is found to be unauthorized, it can be revoked during this period;
-6. If the cooling-off period ends without revocation, the account officially becomes `color = 1`, and the binding `(address, ID, master_seed_hash, token = 0)` becomes an on-chain fact.
+   - During the cooling-off period, the Clerk monitors all upgrade requests signed with their key;
+   - If any request is found to be unauthorized (for example, if the Clerk’s signing key has been stolen), it can be revoked during this period;
+6. If the cooling-off period ends without revocation, the upgrade request is accepted:
+   - the node computes `address = Poseidon(PK)` using the derivation rule,  
+   - the account’s state for this `address` is updated as above,  
+   - and the binding `(address, ID, master_seed_hash, token = 0)` becomes an on-chain fact.
 
 ---
 
 ### 3.3 Subsequent blue addresses: token choice, PASTA-curve derivation, and the new ZK statement
 
-When a single real-world identity wants to open multiple `color = 1` addresses, they must enter the “subsequent blue addresses” setting. Here it is not just “recommending” that you derive addresses in a certain way: the protocol **requires** that every subsequent blue-address upgrade request must include a ZK proof showing that the SK / address was indeed derived from the same `master_seed` according to the specified rule.
+When a single real-world identity wants to open multiple `color = 1` addresses, they must use the “subsequent blue addresses” procedure. Here it is not just “recommending” that you derive addresses in a certain way: the protocol **requires** that every subsequent blue-address upgrade request must include a ZK proof showing that the SK / PK was indeed derived from the same `master_seed` according to the specified rule.
 
 #### 3.3.1 Token choice and derivation rule (Poseidon + PASTA)
 
@@ -526,7 +546,7 @@ For a given user with an already established `master_seed` (obtained from a pass
   - Use SK on the PASTA curve to compute the public key PK;
   - The address is defined as:
     - Apply Poseidon hash once more to the public key PK to obtain `address`;
-    - This `address` is the one that is publicly used on chain when requesting to upgrade some new account to `color = 1`.
+    - This `address` is the account key that is publicly visible on chain once the upgrade to `color = 1` is finalized.
 
 Thus, starting from the same `master_seed`, a given `token` uniquely determines a chain:
 
@@ -536,46 +556,51 @@ Thus, starting from the same `master_seed`, a given `token` uniquely determines 
 
 #### 3.3.2 What the ZK proof must show when applying for subsequent blue addresses
 
-For each subsequent blue address, when the user applies to “upgrade this `address` to `color = 1` and write a particular `token` into it”, the request must be accompanied by a new ZK proof. This proof is no longer just “I know a password”; instead it is closer to “I know a `master_seed`, and this new address really is derived from that same `master_seed`”.
+For each subsequent blue address, when the user applies to “open a new `color = 1` address with this particular `token`”, the request must be accompanied by a new ZK proof. This proof is no longer just “I know a password”; instead it is closer to “I know a `master_seed`, and this new PASTA public key `PK` really is derived from that same `master_seed` and the chosen `token`”.
 
 It can be decomposed like this:
 
 - Public inputs include:
-  - The `address` being upgraded (the new address);
-  - The corresponding `token` (32-byte integer);
-  - `master_seed_hash` (the same value as for this user’s first blue address);
-  - The `ID` written by the Clerk into the transaction (used by the contract to check that “this address belongs to the same identity”).
+  - The PASTA public key `PK` of the new blue address (the circuit does **not** need the `address` itself; the node computes `address = Poseidon(PK)` outside the circuit);
+  - The corresponding `token` (32-byte integer, nonzero for subsequent blue addresses);
+  - `master_seed_hash` (the same value as for this user’s first blue address).
 - Private inputs (witness) include:
   - `master_seed`;
   - Secret intermediates appearing in the derivation process (for example SK, which is sensitive and can remain internal to the circuit);
   - Any internal variables needed to compute PK from SK on the PASTA curve (handled internally by the circuit and not revealed).
 
-The ZK proof must establish the following statement:
+The ZK proof must establish the following statement (informally):
 
 > “There exists a `master_seed` known to me,  
 > such that applying Poseidon once to this `master_seed` yields the currently public `master_seed_hash`;  
-> under this same `master_seed`, if I concatenate it with the currently public `token` in the prescribed way and apply Poseidon hash to the concatenated result, I obtain some private key SK;  
-> using this SK on the PASTA curve, I can compute a public key PK;  
-> applying Poseidon hash to this PK yields the currently public `address`.  
-> In other words, this `address` is indeed derived from this `master_seed` and this `token` under the protocol’s derivation rule.”
+> under this same `master_seed`, if I concatenate it with the currently public `token` in the prescribed way  
+> and apply Poseidon hash to the concatenated result, I obtain some private key SK;  
+> using this SK on the PASTA curve, I can compute a public key PK that equals the currently public `PK`.  
+> In other words, this `PK` is indeed derived from this `master_seed` and this `token` under the protocol’s derivation rule.”
 
 After the node verifies this ZK proof, it is mathematically convinced that:
 
-- The new `address` and the public `token` indeed belong to the same `master_seed`;
+- The new public key `PK` and the public `token` indeed belong to the same `master_seed`;
 - This `master_seed` is, via `master_seed_hash`, bound to the user’s cryptographic identity established earlier (the “password → master_seed → master_seed_hash” relation was already proven during the first blue-address application);
-- Therefore, this new address can safely be treated as “another blue address of the same `master_seed` / the same subject”.
+- Therefore, the address defined as `address = Poseidon(PK)` can safely be treated as “another blue address of the same `master_seed` / the same subject”.
 
 At the on-chain state level:
 
-- When the Clerk submits the upgrade transaction for this new `address`, they must write:
-  - `color`: upgrade from 0 to 1;
-  - `ID`: identical to the user’s previous blue address;
-  - `master_seed_hash`: identical to the previous one;
-  - `token`: the currently public `token`;
+- When the upgrade transaction for this new blue address is processed, the transaction includes:
+  - the public values `(master_seed_hash, token, PK)`,
+  - the proposed `ID` (matching the user’s previous blue address),
+  - and the ZK proof described above;
 - The contract verifies that:
-  - The attached ZK proof satisfies the statement above;
-  - The `master_seed_hash` inside the ZK proof matches the one written in the transaction;
-- The same cooling-off period applies as for the first blue address. After the cooling-off period ends without revocation, this new `address` officially becomes `color = 1`, and its `(ID, master_seed_hash, token)` binding is recorded on chain.
+  - The attached ZK proof satisfies the statement above for these public values;
+  - The `master_seed_hash` used in the proof matches the one written in the transaction;
+- Once this upgrade transaction is finalized on chain:
+  - the node computes `address = Poseidon(PK)`,  
+  - the on-chain system fields for this `address` are set to:
+    - `color`: 1 (upgraded from 0);
+    - `ID`: identical to the user’s previous blue address;
+    - `master_seed_hash`: identical to the previous one;
+    - `token`: the currently public `token`;
+  - and this new `(address, ID, master_seed_hash, token)` binding is recorded on chain.
 
 **Implementation navigation (ZK details):**
 
