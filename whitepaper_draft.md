@@ -333,287 +333,6 @@ The result is:
 
 ---
 
-### 3.1 Account Model in my_coin: What Extra Identity States Exist
-
-my_coin also uses an account-based model, but each account has four extra fields hard-coded into its on-chain state, like additional “system fields”:
-
-- `color`: integer, default 0;
-- `ID`: real-world identity identifier;
-- `master_seed_hash`: derived from a password remembered by the user via a Poseidon hash chain;
-- `token`: 32-byte integer, used together with `master_seed` to derive the private key of this account.
-
-**Initialization rules:**
-
-- For a new account (an account whose on-chain state has not been modified before), the defaults are:
-  - `color = 0`;
-  - `ID` is considered unset;
-  - `master_seed_hash` is considered unset;
-  - `token` defaults to a value of “32 bytes of all zeros”.
-- As long as `color ≠ 0`, an `ID` must be set; this is a hard constraint at the chain level;
-- When an account is upgraded to `color = 1`, the node must permanently record the binding between this address and `(ID, master_seed_hash, token)` in its state, for later compliance, audit, and accountability.
-
----
-
-### 3.2 How a Normal User Upgrades `color = 0` to `color = 1`
-
-> This part is mostly implemented in the prototype, with some minor simplifications.
-> Here it describes the **first** blue-account upgrade for a given real-world identity (the first `color = 1` account with `token = 0`).
-> Subsequent blue addresses for the same identity are described in Section 3.3.
-
-Upgrading an account from `color = 0` to `color = 1` consists of four steps:
-
-1. Locally derive `master_seed_hash`, the first scalar `SK` and public key `PK` from a password and generate a ZK proof;
-2. The user signs the my_coin terms of use;
-3. The Clerk performs offline KYC and confirms the identity;
-4. A blue-address upgrade request, endorsed by the Clerk’s signature, is submitted on-chain; a cooling-off period elapses, and then the account officially becomes `color = 1`.
-
-#### 3.2.1 Local Cryptographic Steps: password → master_seed → master_seed_hash, SK, PK + ZK Proof
-
-On the user’s own device, for the **first blue account**, the local cryptographic steps are:
-
-1. Choose a password that exists only in their own memory;
-2. Apply Poseidon once to this password to obtain `master_seed`;
-3. Apply Poseidon once more to `master_seed` to obtain `master_seed_hash`;
-4. Fix `token = 0` for this first blue address;
-5. Concatenate `master_seed` with this `token` in the way specified by the protocol, and apply Poseidon hash once to the concatenated input to obtain a private scalar `SK`;
-6. Let `G` be the fixed generator point on the elliptic curve used by my_coin; compute the corresponding public key point
-
-   > `PK = SK · G`.
-
-7. Construct a zero-knowledge proof for the following statement (informally):
-
-> There exists a password that I know,  
-> such that applying Poseidon once to this password yields some `master_seed`,  
-> applying Poseidon once to this `master_seed` yields the currently public `master_seed_hash`,  
-> and, with `token = 0`, concatenating this `master_seed` with `token` in the prescribed way  
-> and hashing once more with Poseidon yields a private scalar `SK` such that  
-> `SK · G` equals the currently public `PK`.
-
-In this first blue-address upgrade request, the public input values to the ZK proof are:
-
-- `master_seed_hash`;
-- `token = 0`;
-- the elliptic-curve public key `PK`;
-- and the ZK proof itself.
-
-The password and `master_seed` are never revealed; `SK` and all other intermediates remain internal to the circuit.
-
-**Implementation navigation (ZK details):**
-
-- Rust-side ZK proof generation and verification:
-  - `zkcrypto/src/zkproof_for_ii_blue_apply_gen.rs`
-  - `zkcrypto/src/zkproof_for_ii_blue_apply_verifier.rs`
-- Protocol documentation (logic and circuit constraint explanations):
-  - See the documents under the `docs/blue_apply/` directory
-- Tests calling the Rust ZK APIs (to check that generation and verification behave as expected):
-  - `tests/rust_api_tests/zkproof_ii_blue_apply_tests.py`
-
----
-
-#### 3.2.2 Terms of Use: What the User Must Agree to Before Upgrading
-
-Before the Clerk helps the user perform the on-chain upgrade, the user must sign the my_coin terms of use. The terms should clearly specify in one place:
-
-##### 3.2.2.1 Commitments About the Password and ZK Proof
-
-The user declares and agrees that:
-
-- They do in fact know the password behind the `master_seed_hash` they submitted;
-- Any zero-knowledge proof they submit as part of a blue-address application is generated based on this password that they themselves control,  
-  not a proof text given by someone else which they simply forwarded without understanding;
-- They understand and accept that if they later forget this password, it will not only make “asset recovery” difficult,  
-  but will also directly affect their ability to present evidence and allocate responsibility in cases involving stolen or suspicious funds.
-
-##### 3.2.2.2 When an Incoming Payment Is Deemed “Stolen / Suspicious Funds”
-
-The terms specify that a payment received by a `color = 1` account will be treated as stolen or suspicious funds by my_coin when both of the following hold:
-
-1. The account holder cannot provide a reasonable, verifiable explanation of the source of funds  
-   (for example, cannot provide evidence of a corresponding contract, order, labor, gift, etc.);
-2. The specific transfer is reported by the originating party of the funds (the exact meaning of “report” is defined below).
-
-In the protocol semantics and the terms of use, such an incoming payment is considered stolen / suspicious funds and triggers the subsequent liability mechanism.
-
-##### 3.2.2.3 The Precise Definition of “Report” in This Context
-
-“Report” here means an action that satisfies all of the following:
-
-- The reporter is the originating party of the funds, i.e., the controller of the account from which the funds were originally sent;
-- The reporter can provide a concrete on-chain fingerprint of this transfer: which transaction it is, the source account, destination account, and the amount;
-- The reporter must use the private key of the source account, or an equivalent zero-knowledge proof, to prove:
-
-> “I really control this source account, and these funds were indeed sent out from an account under my control.”
-
-More concretely, there are two cases:
-
-- If the transfer was a non-anonymous transparent payment:
-  - The source and destination addresses are directly visible on-chain;
-  - The reporter signs with the source address’s SK and includes the transaction information.
-- If the anonymous payment feature was used at the time:
-  - The transfer already hides the identity of the source address;
-  - When reporting, the originating party must additionally use their keys together with a zero-knowledge proof to show that  
-    “a certain anonymous output is in fact derived from a key system they control”;
-  - The concrete structure of anonymous payments and the exact proving method will be described separately later.  
-    my_coin only requires that a valid report, via cryptography, link “this anonymous payment” to “the reporter’s account system”.
-
-Only reports satisfying the above conditions count as “reports” under the terms of use, and can be used to classify funds as stolen / suspicious.
-
-##### 3.2.2.4 Obligations to Return Stolen / Suspicious Funds
-
-Once the conditions in 3.2.2.2 hold (i.e., an incoming payment is classified as stolen / suspicious funds), the terms specify:
-
-- Within the “maximum liability amount” that the user has declared in advance, the account holder has a civil obligation to return such stolen / suspicious funds;
-- The user agrees and pre-authorizes that, if necessary, local judicial authorities may enforce this obligation against their off-chain assets  
-  (bank accounts, real estate, etc.) through compulsory execution.
-
-##### 3.2.2.5 Intermediary Launderers vs Upstream Perpetrators: Differences in Liability
-
-Once a payment is classified as stolen / suspicious funds:
-
-- If the account holder claims to be merely an intermediary in the laundering chain, the terms allow them to reduce their liability by:
-  - Using their SK to clearly identify the downstream receiving account(s);
-  - Providing on-chain evidence that the stolen funds have indeed been forwarded from accounts under their control to those downstream accounts,  
-    and that they only retained a small portion as a fee / commission;
-  - In that case, they are liable for returning the portion they retained as commission, and pay penalties according to the rules;  
-    primary liability for the bulk of the stolen funds is then pursued downstream along the chain.
-- If the account holder:
-  - Cannot identify downstream recipients or refuses to provide any verifiable evidence; or
-  - Is in fact the top-level perpetrator of theft / fraud / extortion;
-
-Then, under the terms of use, they bear primary liability for the entire amount of stolen funds, up to their own agreed liability cap.
-
-##### 3.2.2.6 Forgetting the Password and the Liability Cap
-
-Since many ways to “reduce liability” depend on the account holder controlling their key system (and that key system is driven by password / master_seed), once the user forgets their password, the following may happen:
-
-- They might never have actually received the funds (someone else used their identity to launder money);
-- But from the chain’s accounting perspective, those funds are still recorded under their address;
-- When a report is filed, they cannot use keys and evidence to prove that the funds have already gone downstream.
-
-To prevent this risk from growing without bound, the terms require:
-
-- When a user first upgrades an account to `color = 1`, they must specify a “maximum liability amount” they can personally bear;
-- The protocol logic uses this cap to limit, within a given time window, the cumulative amount of “anonymous payments from others” that this account may receive;
-- In the worst case (the user forgets the password and someone else uses their account to launder), their obligation to return funds will not exceed the cap they agreed to in the terms.
-
----
-
-#### 3.2.3 Clerk, KYC, Cooling-Off Period, and the First Blue Account (`token = 0`)
-
-Let's move on to the Clerk and on-chain part.
-
-**Rules for the first upgrade to `color = 1` (the first blue account, `token = 0`):**
-
-- For the first blue account of a given real-world identity, the derivation rule described in Section 3.2.1 is applied with `token = 0`,  
-  and the resulting public key `PK` is used to define the account address as `address = Poseidon(PK)` on chain;
-- When this first account is successfully upgraded from `color = 0` to `color = 1` (after the cooling-off period), its on-chain state for that `address` is updated as follows:
-  - `color`: set from 0 to 1;
-  - `ID`: the real-world identity identifier in the offline identity system;
-  - `master_seed_hash`: the value published by the user and validated via ZK proof;
-  - `token`: 0 (32 bytes of all zeros).
-- This first `color = 1` account’s `token` must be “32 bytes of all zeros”.
-
-**Process summary:**
-
-1. The user generates `master_seed_hash`, chooses `token = 0`, derives the corresponding public key `PK` and the ZK proof described in Section 3.2.1, and confirms that they have signed the terms of use and completed offline KYC with the Clerk;
-2. The Clerk, after finishing offline KYC and checking that the real-world identity matches, uses their official key to sign this first blue-address upgrade request (which contains `master_seed_hash`, `token = 0`, `PK`, and the ZK proof);
-3. This Clerk-endorsed upgrade request is submitted to the blockchain node as an on-chain transaction (it may be broadcast by the user, by the Clerk, or by any relay node; what matters is that it carries a valid Clerk signature);
-4. The chain verifies the ZK proof against these public values and verifies the Clerk’s signature;
-5. The upgrade request enters a cooling-off period:
-   - During the cooling-off period, the Clerk monitors all upgrade requests signed with their key;
-   - If any request is found to be unauthorized (for example, if the Clerk’s signing key has been stolen), it can be revoked during this period;
-6. If the cooling-off period ends without revocation, the upgrade request is accepted:
-   - the node computes `address = Poseidon(PK)` using the derivation rule,  
-   - the account’s state for this `address` is updated as above,  
-   - and the binding `(address, ID, master_seed_hash, token = 0)` becomes an on-chain fact.
-
----
-
-### 3.3 Subsequent blue addresses: token choice, PASTA-curve derivation, and the new ZK statement
-
-When a single real-world identity wants to open multiple `color = 1` addresses, they must use the “subsequent blue addresses” procedure. Here it is not just “recommending” that you derive addresses in a certain way: the protocol **requires** that every subsequent blue-address upgrade request must include a ZK proof showing that the SK / PK was indeed derived from the same `master_seed` according to the specified rule.
-
-#### 3.3.1 Token choice and derivation rule (Poseidon + PASTA)
-
-For a given user with an already established `master_seed` (obtained from a password via Poseidon):
-
-- The user may choose a 32-byte `token` value for each subsequent blue address  
-  (the token must be nonzero, and each address must use a different token);
-- The derivation rule for the private key SK is:
-  - Concatenate `master_seed` with this `token` in the way specified by the protocol;
-  - Apply Poseidon hash once to this concatenated input to obtain the private key SK;
-- On the elliptic-curve side, my_coin uses the PASTA curve, rather than traditional secp-series curves:
-  - Use SK on the PASTA curve to compute the public key PK;
-  - The address is defined as:
-    - Apply Poseidon hash once more to the public key PK to obtain `address`;
-    - This `address` is the account key that is publicly visible on chain once the upgrade to `color = 1` is finalized.
-
-Thus, starting from the same `master_seed`, a given `token` uniquely determines a chain:
-
-> master_seed → (concatenate with token) → Poseidon → SK → compute PK on the PASTA curve → Poseidon(PK) → address.
-
----
-
-#### 3.3.2 What the ZK proof must show when applying for subsequent blue addresses
-
-For each subsequent blue address, when the user applies to “open a new `color = 1` address with this particular `token`”, the request must be accompanied by a new ZK proof. This proof is no longer just “I know a password”; instead it is closer to “I know a `master_seed`, and this new PASTA public key `PK` really is derived from that same `master_seed` and the chosen `token`”.
-
-It can be decomposed like this:
-
-- Public inputs include:
-  - The PASTA public key `PK` of the new blue address (the circuit does **not** need the `address` itself; the node computes `address = Poseidon(PK)` outside the circuit);
-  - The corresponding `token` (32-byte integer, nonzero for subsequent blue addresses);
-  - `master_seed_hash` (the same value as for this user’s first blue address).
-- Private inputs (witness) include:
-  - `master_seed`;
-  - Secret intermediates appearing in the derivation process (for example SK, which is sensitive and can remain internal to the circuit);
-  - Any internal variables needed to compute PK from SK on the PASTA curve (handled internally by the circuit and not revealed).
-
-The ZK proof must establish the following statement (informally):
-
-> “There exists a `master_seed` known to me,  
-> such that applying Poseidon once to this `master_seed` yields the currently public `master_seed_hash`;  
-> under this same `master_seed`, if I concatenate it with the currently public `token` in the prescribed way  
-> and apply Poseidon hash to the concatenated result, I obtain some private key SK;  
-> using this SK on the PASTA curve, I can compute a public key PK that equals the currently public `PK`.  
-> In other words, this `PK` is indeed derived from this `master_seed` and this `token` under the protocol’s derivation rule.”
-
-After the node verifies this ZK proof, it is mathematically convinced that:
-
-- The new public key `PK` and the public `token` indeed belong to the same `master_seed`;
-- This `master_seed` is, via `master_seed_hash`, bound to the user’s cryptographic identity established earlier (the “password → master_seed → master_seed_hash” relation was already proven during the first blue-address application);
-- Therefore, the address defined as `address = Poseidon(PK)` can safely be treated as “another blue address of the same `master_seed` / the same subject”.
-
-At the on-chain state level:
-
-- When the upgrade transaction for this new blue address is processed, the transaction includes:
-  - the public values `(master_seed_hash, token, PK)`,
-  - the proposed `ID` (matching the user’s previous blue address),
-  - and the ZK proof described above;
-- The contract verifies that:
-  - The attached ZK proof satisfies the statement above for these public values;
-  - The `master_seed_hash` used in the proof matches the one written in the transaction;
-- Once this upgrade transaction is finalized on chain:
-  - the node computes `address = Poseidon(PK)`,  
-  - the on-chain system fields for this `address` are set to:
-    - `color`: 1 (upgraded from 0);
-    - `ID`: identical to the user’s previous blue address;
-    - `master_seed_hash`: identical to the previous one;
-    - `token`: the currently public `token`;
-  - and this new `(address, ID, master_seed_hash, token)` binding is recorded on chain.
-
-**Implementation navigation (ZK details):**
-
-- The derivation constraints in this subsection reuse the same ZK circuit family as for blue-account applications:
-  - `zkcrypto/src/zkproof_for_ii_blue_apply_gen.rs`
-  - `zkcrypto/src/zkproof_for_ii_blue_apply_verifier.rs`
-- Corresponding protocol and circuit descriptions:
-  - Detailed specifications under `docs/blue_apply/`
-- Python-side integration tests for these circuits:
-  - `tests/rust_api_tests/zkproof_ii_blue_apply_tests.py`
-
----
-
 ### 3.4 Account nonce and transparent transfer rules
 
 - Beyond the color and identity mechanism, each my_coin account carries an on-chain `nonce` field, which constrains the ordering of all operations that this account actively initiates. Transparent transfers operate on top of this, with overall rules very similar to Ethereum.
@@ -660,6 +379,8 @@ The transparent-transfer layer behaves almost the same as Ethereum:
 There is nothing particularly novel here; this subsection is mainly to clarify that:  
 on the “non-anonymous, transparent layer”, my_coin’s accounting and ordering behavior matches common account-based chains, and this layer serves as a foundation for the anonymous-layer design that follows.
 
+---
+
 ### 3.5 Anonymous commitment layer: AC and MerkleTreeCommit
 
 The anonymous layer of my_coin is built around **anonymous commitments (ACs)**. An AC is a commitment hash, and its plaintext is called a `note`.  
@@ -672,19 +393,19 @@ The core object in the anonymous layer is the **anonymous commitment (AC)**, whi
 The preimage of an AC is a `note`, whose fields are fixed and ordered as four items:
 
 1. `balance`: how much value is stored in this anonymous unit;
-2. `sk`: the secret that controls this anonymous unit;
+2. `SK`: the secret that controls this anonymous unit;
 3. `nonce`: this anonymous unit’s own counter;
 4. `src`: a source label (for example, indicating whether it comes from an account, or from a previous note in a chain).
 
 The AC is computed using the Poseidon hash, applied to these four fields in fixed order:
 
-> AC = Poseidon(balance, sk, nonce, src)
+> AC = Poseidon(balance, SK, nonce, src)
 
 All ACs are inserted into a single commitment tree called **`MerkleTreeCommit`**:
 
 - The structure of `MerkleTreeCommit` is very similar to Zcash Sapling’s note commitment tree, and can be understood as “its Poseidon-based version”;
 - Its height is fixed at 32 levels, so it supports up to 2³² leaves;
-- Each leaf is an AC (i.e., the result of `Poseidon(balance, sk, nonce, src)` as defined above).
+- Each leaf is an AC (i.e., the result of `Poseidon(balance, SK, nonce, src)` as defined above).
 
 The following are public on chain:
 
@@ -692,7 +413,7 @@ The following are public on chain:
 - The value of each AC;
 - The insertion position of each AC within the tree.
 
-The four fields of the note and `sk` itself are not public.
+The note itself is never stored on chain in plaintext form. In zero-knowledge proofs, some components of the note (for example `balance`, `nonce`, and `src`) may appear as public inputs, but the secret key field `SK` is never revealed.
 
 **Implementation navigation (ZK details that will be used later in the anonymous-pay section):**
 
@@ -771,9 +492,9 @@ In the corresponding ZK proof, the key inputs can be divided as follows:
 
 ##### 3.5.3.3 Two statements the ZK circuit must prove
 
-The deposit circuit actually enforces **two** logical statements, and it enforces that **both** use the same `sk` in the proof.
+The deposit circuit actually enforces **two** logical statements, and it enforces that **both** use the same `SK` in the proof.
 
-**First statement: `sk → PK → ADDR` (proving who is paying)**
+**First statement: `SK → PK → ADDR` (proving who is paying)**
 
 The circuit must prove:
 
@@ -833,12 +554,11 @@ Why the protocol insists on this design (no ownership transfer when generating a
 
 ---
 
-
 ### 3.6 Anonymous Pay: single old AC → CommitChange & public address
 
 This subsection describes the most typical form of anonymous payment:
 
-- Consume one old AC;
+- Consume one old AC (an existing and unconsumed AC);
 - Create one new anonymous change AC (`CommitChange`);
 - Pay a public amount `pay_balance` to a public address `ADDR_to`.
 
@@ -880,8 +600,6 @@ The **nullifier** is used as a tombstone when a note is spent, preventing the sa
 - Intuitively:
   - The nullifier is an “identity fingerprint” of the note that does not include the amount;
   - If the same nullifier appears on chain a second time, it signals an attempt to spend the same note twice, and the transaction can be rejected.
-
-The old AC value `AC_old` is not a public input; it appears only inside the ZK circuit (recomputed from the note’s internal fields).
 
 ---
 
@@ -927,7 +645,7 @@ From the on-chain observer’s perspective, one can see:
 
 They **cannot** see:
 
-- The internal fields of the spent old note: `balance_old / sk / nonce_old / src_old`;
+- - The internal fields of the spent old note (its `balance / SK / nonce / src`);
 - The change amount `balance_change` inside CommitChange;
 - The exact leaf position of the old AC and its Merkle-path details.
 
@@ -938,7 +656,7 @@ They **cannot** see:
 The note corresponding to `CommitChange` still uses the four fields `(balance, sk, nonce, src)`, but with specific conventions for anonymous pay:
 
 - `balance`: the change amount (secret, denote it as `balance_change`);
-- `sk`: the same `sk` as in the spent old note (same controller);
+- `sk`: the same sk as in the spent old note (same controller);
 - `nonce`: fixed to `0`;
 - `src`: fixed to the public `nullifier` (i.e., the identity fingerprint of the old note).
 
@@ -947,7 +665,7 @@ So the note for CommitChange is:
 - `balance = balance_change` (secret);
 - `sk` (secret, identical to the old note’s `sk`);
 - `nonce = 0` (constant);
-- `src = nullifier_public` (constant).
+- `src = nullifier` (constant).
 
 The value of `CommitChange` is then:
 
@@ -1125,6 +843,8 @@ is implemented in the Anonymous Pay mechanism.
 - Single tests calling the Rust ZK API (anonymous pay):
   - `tests/rust_api_tests/zkproof_anon_pay_tests.py`
 
+
+
 ### 3.7 Merging multiple anonymous commitments (2 → 1, self-merge)
 
 > This part is not yet implemented in the prototype, but the principle is similar to Sections 3.6 and 3.5 and should not be difficult to add.
@@ -1164,14 +884,14 @@ Where:
 
 After merging, a new commitment is created, denoted `JointCommit`, whose new note fields are defined as:
 
-- `balance = balance₁ + balance₂` (the merged total balance, as a secret input, i.e. the total after “consolidation”);
+- `balance = balance_new`, where `balance_new = balance₁ + balance₂` (the merged total balance, as a secret input, i.e. the total after “consolidation”);
 - `sk =` the same `sk`;
 - `nonce = 0`;
 - `src = Poseidon(nullifier₁, nullifier₂)`.
 
 Thus the value of `JointCommit` satisfies:
 
-> JointCommit = Poseidon(balance₁ + balance₂, sk, 0, Poseidon(nullifier₁, nullifier₂))
+> JointCommit = Poseidon(balance_new, sk, 0, Poseidon(nullifier₁, nullifier₂))
 
 The meaning of this structure is:
 
@@ -1184,6 +904,18 @@ The meaning of this structure is:
 #### 3.7.2 What the ZK proof must guarantee (similar to Anonymous Pay)
 
 The ZK proof for the merge operation is conceptually very similar to the Anonymous Pay proof in Section 3.6 and can be described in natural language as the following statements.
+
+**Public inputs (from the circuit’s point of view):**
+
+- `CommitRoot` (current root of MerkleTreeCommit);
+- `nullifier₁_public` and `nullifier₂_public` (the two public nullifiers to be marked as spent);
+- `JointCommit` (the value of the newly created merged commitment).
+
+**Secret inputs (witness):**
+
+- The two notes’ fields `(balance₁, sk, nonce₁, src₁)` and `(balance₂, sk, nonce₂, src₂)`;
+- The new merged balance `balance_new`;
+- The Merkle paths for `AC₁` and `AC₂` in MerkleTreeCommit (sibling hashes, positions, etc.).
 
 ##### 3.7.2.1 The old `AC₁` and `AC₂` really exist in the current MerkleTreeCommit
 
@@ -1282,21 +1014,8 @@ Combining the above statements, the semantics of “merging two anonymous commit
   - control key `sk` identical to the old notes;
   - `nonce = 0`;
   - `src = Poseidon(nullifier₁, nullifier₂)`;
-- The whole process does not involve any public address and does not generate an anonymous output for anyone else:
+- The whole process does no
 
-> It is purely the same holder consolidating two smaller anonymous balances  
-> into one larger anonymous balance inside the anonymous layer,  
-> to make subsequent larger-amount Anonymous Pay operations easier.
-
-From the on-chain perspective, one can only see:
-
-- Two nullifiers being consumed;
-- A new `JointCommit` being inserted into MerkleTreeCommit;
-- No new public-payment record appearing.
-
-This matches the design goal that “merge operations for multiple anonymous commitments are restricted to self-merges and cannot be used to pay others.”
-
----
 
 ### 3.8 Hidden-amount payments between blue addresses (commit-style payments with mandatory backup)
 
@@ -1317,8 +1036,8 @@ Concretely, the constraint is:
 > and using my `SK_A`,  
 > I encrypted the `balance` and `blind` of `commitChange` into two on-chain ciphertexts `S1` and `S2`.”
 
-The ZK circuit does **not** care about the structure of Bob’s receiving commit, nor about the correctness of the receiving ciphertext `messageR`.  
-Those are handled by the payee and consensus logic outside of ZK.
+The ZK circuit does **not** care about the correctness of the receiving ciphertext `messageR`.  
+How Bob verifies or uses `messageR` is handled entirely outside this ZK circuit.
 
 ---
 
@@ -1339,7 +1058,8 @@ defined as:
 
 - The ledger explicitly records “which account a given commit belongs to”;
 - The preimage of a commit does not itself contain a public key field;
-- As long as you can prove you control the private key `SK_A` corresponding to the account’s public key `PK_A`, you can spend all commits attached to that account.
+- As long as you can prove you control the private key `SK_A` corresponding to the account’s public key `PK_A`, you can spend all commits attached to that account;
+- This mapping and the “unspent / spent” status of each commit are enforced by the ledger state machine, not by the ZK circuit in this section.
 
 **Additional fixed rule (specific to this section):**
 
@@ -1389,14 +1109,14 @@ The high-level idea is:
 
 - Derive a shared symmetric key from Alice’s and Bob’s key material;
 - Encrypt `value_pay` (and any necessary auxiliary information) with that symmetric key to obtain `messageR`;
-- `commit_pay` and `messageR` are validated by Bob and the consensus logic outside ZK using standard cryptography.
+- `commit_pay` and `messageR` are then stored on chain so that Bob can later try to decrypt and interpret them.
 
 **Important:**
 
 - In the ZK proof in this section:
-  - The structure of `commit_pay` is **not** verified;
   - The correctness of `messageR` is **not** verified;
-- They are handled purely outside this ZK circuit.
+- `messageR` is checked (if at all) by Bob’s side using standard cryptography;  
+  the consensus layer simply records `commit_pay` and `messageR` as given, while the ZK circuit only enforces structural constraints on `commit_pay` as described later.
 
 ##### 3.8.2.4 Constructing Alice’s change commitChange and mandatory backups `S1 / S2` (the part enforced by ZK)
 
@@ -1418,7 +1138,7 @@ This is the part the ZK circuit must strictly enforce.
 
    > commitChange = Poseidon(value_change, blind_change, N_new)
 
-   This `commitChange` is then attached to Alice’s List of Commits as a new anonymous balance.
+   This `commitChange` is then attached to Alice’s List of Commit as a new hidden-amount commit in Alice’s List of Commits.
 
 3. **Generate mandatory backup ciphertexts `S1 / S2`:**
 
@@ -1443,6 +1163,7 @@ The ZK proof for this “hidden-amount payment” enforces the following:
 
 - The preimage of the old `commit_in` really exists;
 - Strict value conservation: `value_in = value_pay + value_change`;
+- Bob’s receiving commit `commit_pay` has the standard commit format with internal amount `value_pay`;
 - The `counter` used in the change commit `commitChange` is exactly the account nonce `N_new` for this transaction;
 - `S1` and `S2` are indeed produced by encrypting `value_change` and `blind_change` with `SK_A` using the agreed ZK-friendly symmetric primitive.
 
@@ -1453,6 +1174,7 @@ The circuit’s public inputs can be summarized as:
 - `commit_in`: the old commit being consumed;
 - `counter_in`: the `counter` of the old commit (read from the account state);
 - `commitChange`: the value of the new change commit;
+- `commit_pay`: Bob’s receiving commit in this payment;
 - `N_new`: the paying account’s nonce from the transaction envelope (the consensus layer will check its `++nonce` relation with the account state);
 - `S1`: the symmetric ciphertext backing up `value_change`;
 - `S2`: the symmetric ciphertext backing up `blind_change`;
@@ -1460,9 +1182,8 @@ The circuit’s public inputs can be summarized as:
 
 **Note:**
 
-- There is no `commit_pay` here;
-- There is no `messageR` for Bob;
-- Neither enters this ZK proof.
+- There is no `messageR` for Bob in the public inputs;
+- `messageR` never enters this ZK proof.
 
 ##### 3.8.3.2 Private inputs (witness)
 
@@ -1471,6 +1192,8 @@ The witness values in the circuit (known only to the prover) include:
 - `value_in`: the old commit’s amount;
 - `blind_in`: the old commit’s blind;
 - `value_pay`: the payment amount for this transaction;
+- `blind_pay`: the blind for Bob’s receiving commit;
+- `counter_pay`: the `counter` field for Bob’s receiving commit;
 - `value_change`: the change amount for this transaction;
 - `blind_change`: the blind for the change commit;
 - `SK_A`: the payer’s private key;
@@ -1522,7 +1245,22 @@ The circuit must jointly satisfy the following constraints:
    - The `counter` in the change commit matches the transaction envelope’s `nonce`;
    - The contract layer then checks that `N_new` equals on-chain `N_old + 1`, thereby aligning the account-level ordering control with the commit-level `counter`.
 
-4. **`SK_A` really corresponds to the paying address’s public key `PK_A`**
+4. **Correct structure of Bob’s receiving `commit_pay`**
+
+   - Inside the circuit, use witness `value_pay`, `blind_pay` and `counter_pay` to compute:
+
+     > Poseidon(value_pay, blind_pay, counter_pay)
+
+   - The result must equal the public `commit_pay`.
+
+   Meaning:
+
+   - `commit_pay` is a structurally correct commit under the same `commit = Poseidon(value, blind, counter)` rule;
+   - Its internal amount is exactly the `value_pay` that appears in the strict value-conservation equation;
+   - The choice of `blind_pay` and `counter_pay` is otherwise unconstrained by the circuit (beyond this Poseidon relation);
+   - The circuit does not check which on-chain account this `commit_pay` is attached to; that association is handled by the ledger outside the circuit.
+
+5. **`SK_A` really corresponds to the paying address’s public key `PK_A`**
 
    - In the circuit, use the witness `SK_A` to compute an expected public key `PK_A_expected` on the elliptic curve;
    - Require `PK_A_expected` to equal the public `PK_A`.
@@ -1534,7 +1272,7 @@ The circuit must jointly satisfy the following constraints:
    > The prover is not simply an external attacker trying to use someone else’s `commit_in`,  
    > nor an anonymous outsider with no relation to the account.
 
-5. **`S1` is produced by ZK-friendly symmetric encryption of `value_change` with `SK_A`**
+6. **`S1` is produced by ZK-friendly symmetric encryption of `value_change` with `SK_A`**
 
    - In the circuit, use `SK_A` (or a symmetric key derived from it via a public rule) as the key for the symmetric primitive `SymEnc`;
    - Apply `SymEnc` to `value_change` (possibly via one or several rounds as specified by `SymEnc`) to obtain `S1_expected`;
@@ -1546,7 +1284,7 @@ The circuit must jointly satisfy the following constraints:
    - It is not arbitrary data nor an attacker’s random string;
    - As long as Alice keeps control of `SK_A`, she can recover `value_change` from `S1`.
 
-6. **`S2` is produced by ZK-friendly symmetric encryption of `blind_change` with `SK_A`**
+7. **`S2` is produced by ZK-friendly symmetric encryption of `blind_change` with `SK_A`**
 
    - Similarly, use the same `SK_A` (or its derived symmetric key) as the key for `SymEnc`;
    - Apply `SymEnc` to `blind_change` to obtain `S2_expected`;
@@ -1600,13 +1338,16 @@ is **not** implemented in the prototype:
 
 In designing these fast-payment features, my_coin makes a deliberate trade-off:
 
-- The **non-anonymous layer** where fast payment channels live does **not** support hidden payment amounts;
-- That is, on this “fast path”:
+- The **fast payment channel layer itself** does **not** support hidden payment amounts;
+- In particular:
+  - If a payment path involves **any non–blue address**, the amount is always transparent on that path;
+  - Hidden-amount payments are only available on paths where **both endpoints are blue addresses**, and then must go through the commit-style mechanisms (Sections 3.8 and related), **not** through the fast channel;
+- That is, on the “fast path”:
   - Who pays whom is visible;
   - The payment amount itself is also transparent;
-  - Real “amount privacy” only happens in the anonymous layer.
+  - Real “amount privacy” happens either in the anonymous layer, or via the commit-style hidden-amount mechanisms between blue addresses, outside the fast channel.
 
-This is not because it is technically impossible to hide amounts there, but rather due to a combined consideration of system-wide fund distribution and regulatory acceptability.
+This is not because it is technically impossible to hide amounts in fast channels, but rather due to a combined consideration of system-wide fund distribution and regulatory acceptability.
 
 ---
 
@@ -1640,7 +1381,7 @@ From a purely technical and UX perspective, there is an appealing alternative pa
 - Let the anonymous pay functionality itself support **hidden-amount payments** (i.e. both “anonymous identity + hidden amount” together);
 - Charge only a **constant** per-unit-time custody fee in the non-anonymous layer, instead of dynamically adjusting it based on the anonymous-layer fund ratio;
 - This would lead to two parallel usage patterns:
-  - Non-anonymous layer + fast payment channels: for high-frequency, small-value, regulation-heavy scenarios;
+  - Non-anonymous layer + fast payment channels (amount-transparent): for high-frequency, small-value, regulation-heavy scenarios;
   - Anonymous layer + hidden-amount payments: for higher-privacy, larger-amount scenarios.
 
 In such a design, as long as sufficient funds continue to participate in the anonymous layer, **anti–money-laundering effects can still be strong**, and the system would have very powerful privacy capabilities and flexibility. However:
@@ -1650,7 +1391,10 @@ In such a design, as long as sufficient funds continue to participate in the ano
 
 After weighing these factors, my_coin’s current roadmap **prioritizes the version more likely to be acceptable to regulators**:
 
-- Fast payment channels and the non-anonymous layer do not hide amounts;
+- Fast payment channels themselves do not hide amounts, and any path involving non–blue addresses must remain amount-transparent;
+- Hidden-amount payments are reserved for:
+  - The anonymous layer; and
+  - Commit-style hidden-amount mechanisms between blue addresses (outside the fast channel path);
 - A dynamic custody fee steers users toward keeping main holdings in the anonymous layer and using anonymous pay more;
 - The more aggressive “anonymous identity + hidden amount” design is retained as a **theoretically feasible, future extension**, rather than being activated in the first version of the protocol.
 
@@ -1679,6 +1423,16 @@ To mitigate such “account pollution” risks, the protocol includes a **“con
 - **“I was just spammed with money; I never intended to receive it”**, and  
 - **“I willingly and deliberately accepted this payment”**.
 
+Here, the notion of “illicit” or “suspicious” funds, and the act of “reporting” a payment, are primarily **off-chain legal / judicial notions**.  
+The chain only:
+
+- Provides cryptographic evidence and state for those off-chain procedures; and
+- Offers a clear place in the state machine where such off-chain decisions can be applied.
+
+For example, one possible reporting route is to follow the cryptographic method suggested in Section 3.2.2.3, but local law is free to adopt other procedures. The protocol does not constrain courts to a single way of “reporting”; it only gives them a technically strong option.
+
+---
+
 #### 3.10.1 Basic semantics: unconfirmed incoming funds can be directly returned
 
 In a version that supports “receipt confirmation”, a payment to a blue address goes through two stages:
@@ -1686,38 +1440,41 @@ In a version that supports “receipt confirmation”, a payment to a blue addre
 1. **Arrival stage**:  
    - The payment transaction is already on chain;  
    - The ledger records “X paid amount A to Y” (transparent or via anonymous entry as per previous rules);  
-   - But this amount is in an “unconfirmed incoming” state on Y’s account.
+   - This amount appears in an “unconfirmed incoming” slot on Y’s account;  
+   - In this stage, **Y cannot use this amount as input to any outgoing transfer or spend**.
 
 2. **Receipt-confirmation stage**:  
    - If the recipient believes this payment is **funds they were supposed to receive** (salary, compensation, refunds, etc.),  
    - they must use their address’s private key `SK_Y` to sign a “fingerprint” of this payment (e.g. transaction hash + amount + their own address),  
    - and broadcast a “receipt confirmation” message:  
      > “I (address Y) confirm that this payment A from X is funds I willingly accept.”  
-   - This signature is recorded on chain or in equivalent contract state.
+   - This signature is recorded on chain or in equivalent contract state, and the amount becomes part of Y’s normal spendable balance.
 
 Under this mechanism:
 
-- **If a payment has never been confirmed by the recipient** and is later reported/recognized as illicit:  
-  - The chain can simply “freeze” that payment,  
+- **If a payment has never been confirmed by the recipient**, and is later, through some off-chain process (for example a court case, or a complaint supported by the 3.2.2.3-style originator report), recognized as illicit funds:  
+  - The chain can simply “freeze” that payment, or treat it as “returnable to the origin” according to the applicable off-chain decision;  
   - It does not enter the complex responsibility-sharing process from Chapter 4 (“who is the first hop, who must point to next hop”, etc.);  
-  - The recipient is treated, in protocol terms, as having “been spammed with funds and never accepted them”.  
+  - The recipient is treated, in protocol terms, as having “been spammed with funds and never accepted them”.
 
 - **Only payments that have been confirmed by the recipient** will enter the full responsibility game:  
   - Who is the first-level holder, who needs to identify downstream recipients with their SK,  
   - Who only took a commission, who is liable for the whole illicit amount,  
-  - All are handled under the rules in Chapter 4.
+  - All are handled under the rules in Chapter 4, combined with whatever the relevant off-chain legal system decides.
 
 As a result, simply “spraying dirty money into random blue addresses” is much less effective at dragging innocent users into convoluted disputes — because as long as they never sign a “receipt confirmation”,  
 both the protocol and courts can treat the funds as:
 
 > Refunded back to the origin, and no pollution has actually been established.
 
+---
+
 #### 3.10.2 Abuse and accountability
 
 Of course, this mechanism itself leaves a full trace to prevent abuse:
 
 - If someone **receives normal payments for genuine services**, but then tries to exploit the mechanism:  
-  - Pay first, then quickly request a “wrong transfer” refund before the other party can confirm receipt;  
+  - For example, pay first, then quickly request a “wrong transfer” refund before the other party can confirm receipt;  
   - Such behavior leaves a public on-chain history of “repeated paying and repeatedly retracting”;  
   - Whether this constitutes breach of contract or fraud is left to the courts, using the on-chain evidence.
 
@@ -1728,11 +1485,13 @@ Of course, this mechanism itself leaves a full trace to prevent abuse:
 Overall:
 
 - **The receipt-confirmation signature = the recipient’s subjective consent to the funds**;  
-- For unconfirmed incoming funds that are recognized as illicit, the protocol defaults to “returning them to the source” and shields the recipient from forced pollution;  
-- For payments that have been confirmed, the process follows Chapter 4’s rules for explaining sources and assigning responsibility.
+- For unconfirmed incoming funds that are recognized as illicit through some off-chain procedure, the protocol defaults to “returning them to the source” and shields the recipient from forced pollution;  
+- For payments that have been confirmed, the process follows Chapter 4’s rules for explaining sources and assigning responsibility, on top of the off-chain legal process.
 
 This mechanism is currently only a protocol-level idea.  
 If implemented later, a more detailed state machine and transaction format will be specified in the `docs/` directory.
+
+---
 
 ## ##########################################################################################################################################
 
@@ -1803,7 +1562,7 @@ And blue addresses are:
 
 - KYC’ed real-world identities;
 - Bound to a single real-world ID via masterSeed + token;
-- There is no situation where “the chain says it’s Bob, but the SK is actually in a hacker’s hands” (this will be discussed separately below).
+- At the protocol level, any blue address bound to “Bob” must have its SK derived from Bob’s unique masterSeed + some token according to the public derivation rule — the system does not accept a “blue address for Bob” whose SK is an arbitrary unrelated key or comes from some other seed. Whether Bob later leaks that SK or forgets the password that generates his masterSeed is an operational risk and does not change this on-chain binding.
 
 So for a “solo” hacker:
 
@@ -1831,8 +1590,8 @@ We’ll break this into two parts:
 
 There are three key structural features:
 
-1. **Blue accounts must be KYC’ed + bound by usage terms**
-2. **A single real-world ID can have only one masterSeed + many derived addresses**
+1. **Blue accounts must be KYC’ed + bound by usage terms**  
+2. **A single real-world ID can have only one masterSeed + many derived addresses**  
 3. **All evolution in the anonymous layer is bound by SK + public fields**
 
 We’ll go through them quickly.
@@ -1852,9 +1611,9 @@ So behind each blue account lies a concrete person/entity, together with a very 
 - All blue addresses under that ID have SKs derived from this masterSeed + different tokens;
 - This implies:
   - As long as this person remembers their password, they can enumerate all of their blue-address SKs;
-  - The protocol **forbids** any blue address where “on-chain the real-name is Bob, but only a hacker holds the private key”.
+  - The protocol **forbids** any blue address whose SK is structurally unrelated to the masterSeed bound to its on-chain real-name ID.
 
-This directly shoots down the “digital ID + arbitrary address signatures” design: that approach encourages a world where “ID belongs to Alpha, SK belongs to Beta”. In my_coin, that is structurally disallowed.
+This directly shoots down the “digital ID + arbitrary address signatures” design: that approach encourages a world where “ID belongs to Alpha, SK belongs to Beta”. In my_coin, that kind of structurally foreign SK under a real-name ID is disallowed by construction.
 
 **(3) All evolution in the anonymous layer is structurally constrained by SK**
 
@@ -1880,7 +1639,7 @@ This is very different from Zcash, where you only know “funds went into the po
 
 Once locked down, the intermediary faces only two options:
 
-1. Stonewall: say nothing;
+1. Stonewall: say nothing;  
 2. Confess: use their SK to identify downstream participants.
 
 This is where the “annoying” protocol constraints we introduced earlier start to matter.
@@ -1956,13 +1715,13 @@ This is the real meaning of “professional launderers are structurally unsafe i
 
 Now we can go back and answer those initial “this is so weird” design choices:
 
-#### 4.3.1 masterSeed + token: forbidding “real-name belongs to one person, SK belongs to someone else”
+#### 4.3.1 masterSeed + token: forbidding “blue SKs structurally unrelated to the holder’s masterSeed”
 
-- Goal: ensure that “if a blue address is in someone’s real name, then that same person holds the SK”;
-- Once that is guaranteed:
-  - If any blue address is identified as a hop on a laundering path;
-  - We can assume that this real-world person **must** hold the SK for that family of blue addresses;
-  - Therefore, they **must** be able to reconstruct their own segment of the anonymous path — if they want to exonerate themselves, they must present their SK and evidence, not just say “I don’t know”.
+- Goal: ensure that, at the protocol level, **any blue address recorded under a given real-world ID can only have SKs that are derived from that ID’s unique masterSeed + token according to the public derivation rule**. The chain will not accept a “blue address for Bob” whose SK is an arbitrary random key or derived from some other unrelated seed.
+- In particular:
+  - As long as this person still remembers the password that generates their masterSeed (and has not voluntarily thrown the keys away), they can in principle recompute all SKs for their blue addresses and thus reconstruct their own segment of the anonymous path;
+  - If in reality they later leak those SKs to others, or completely forget the password and lose the ability to derive them, that is their own operational failure and does not magically create a structurally “foreign SK” for this real-name account.
+- Therefore, once some blue address is identified as a hop on a laundering path, the protocol can legitimately treat the corresponding real-world subject as the one who *ought* to be able to derive and safeguard the relevant SKs. If they want to exonerate themselves, they need to use their SK / password–based evidence to reconstruct their segment, rather than simply claiming “this address was in my name but I never really had any key”.
 
 #### 4.3.2 Forbidding `sk` changes in acct→anon: making sure the anonymous entry never escapes the original owner’s “field of view”
 
@@ -2118,7 +1877,7 @@ Even in the worst-case scenario above, my_coin’s design still gives victims tw
   - Expected payoff from being a first-hop intermediary:
     - Only a very small commission;
     - But once exposed, they must either:
-      -undertake civil liability for the full stolen amount up to their cap; or
+      - undertake civil liability for the full stolen amount up to their cap; or
       - Admit to being a laundering intermediary and face money-laundering criminal charges;
   - The more levels they participate in, the more likely they are to:
     - Be traced by a real upstream victim with SK;
