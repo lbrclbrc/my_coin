@@ -29,7 +29,7 @@ from wrappers.zkproof_for_anon_pay_wrapper import (
 )
 
 import zkcrypto
-from tools import PALLAS_P
+from tools import PALLAS_P, short_hex
 
 # ===== Basic helpers =====
 
@@ -56,19 +56,6 @@ def flip_one_bit_hex(h):
     b = bytearray(bytes.fromhex(h))
     b[0] = b[0] ^ 1
     return bytes(b).hex()
-
-
-def short_hex(h, n=24):
-    """
-    Return a shortened string representation of a long hex value.
-    Only used for debug prints in tests.
-    """
-    if h is None:
-        return "None"
-    s = str(h)
-    if len(s) <= n:
-        return s
-    return s[:n] + "..."
 
 
 def build_path_fixed_32(tree, index):

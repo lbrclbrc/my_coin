@@ -17,7 +17,7 @@
 #      - Use two independent keypairs:
 #          sk_commit drives anon_commit.
 #          sk_addr drives addr.
-#      - Use zkcrypto.get_evil_zkproof_for_acct_to_anon_tx(...) to construct
+#      - Use zkcrypto.zkproof_for_acct_to_anon_tx_evil_gen(...) to construct
 #        a proof that *would* pass verification if the circuit forgot to link
 #        addr and anon_commit to the same secret key.
 #      - Run the verifier on this "evil" proof and confirm that:
