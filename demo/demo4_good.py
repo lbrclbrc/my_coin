@@ -68,9 +68,9 @@ def run_acct_to_anon_simple(
     node: Node,
 ):
     """
-    Run a single AcctToAnon deposit for a blue account (demo4 版的精简封装).
+    Run a single AcctToAnon deposit for a blue account.
 
-    返回:
+    return:
       updated_acct, anon_commit_hex, nonce_int
     """
     addr = blue_acct.addr

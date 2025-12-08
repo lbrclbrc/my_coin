@@ -107,7 +107,7 @@ Call
 Wrapper behavior:
 
 - `root`, `nullifier`, `commit_change`:
-    - Bytes32OrHex → 32B bytes using同样的规则（bytes 原样，str 走 turn_hex_str_to_bytes）。
+    - Bytes32OrHex → converted into 32-byte raw bytes using the same rule (bytes used directly; strings parsed via `turn_hex_str_to_bytes`).
 - `value_pay`:
     - int → 32-byte big-endian.
 - `proof`:

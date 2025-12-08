@@ -65,7 +65,7 @@ def run_acct_to_anon(
     envelope = run_silently(client.apply_for_acct2anon, acct, amount)
     payload = envelope["payload"]
 
-    # ZK proof explanation as one block of text（demo 模式才展示）.
+    # ZK proof explanation as one block of text.
     if explain_proof and not quiet:
         proof_msg = (
             "[DEMO3] ZK proof for AcctToAnon (informal statement):\n"

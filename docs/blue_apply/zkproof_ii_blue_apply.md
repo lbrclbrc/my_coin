@@ -18,18 +18,18 @@ API names
 0. Byte / hex conventions
 
 - All data (except the proof) is conceptually 32-byte blobs on the Python side.
-- Wrappers accept **either**:
-  - Bytes32: `bytes`/`bytearray` of length 32
-  - Hex32:   `str` of hex characters, length 64, with or without `0x` prefix, any case
-- Internally, hex strings are stripped, optional `0x` removed, then `bytes.fromhex` applied.
+- Wrappers accept either:
+  - Bytes32: bytes/bytearray of length 32
+  - Hex32:   hex string of length 64, with or without prefix, any case
+- Internally, hex strings are stripped, optional prefix removed, then bytes.fromhex applied.
 - Proof:
-  - generator returns `proof_hex: str` (hex, lowercase, no `0x`)
-  - verifier accepts the proof as either hex string or raw `bytes`.
+  - generator returns proof_hex: str (hex, lowercase, no prefix)
+  - verifier accepts the proof as either hex string or raw bytes.
 
 Type aliases
 
-- Bytes32    = Python `bytes` length 32
-- Hex32      = hex string for 32 bytes (64 chars, case-insensitive, no `0x` in canonical form)
+- Bytes32    = Python bytes length 32
+- Hex32      = hex string for 32 bytes (64 chars, case-insensitive, canonical form has no prefix)
 - ZKProofHex = hex string for proof bytes
 
 Field and scalar bounds
@@ -41,7 +41,7 @@ Field and scalar bounds
 
 - master_seed and master_seed_hash are canonical Fp encodings:
   int.from_bytes(x, "big") < PALLAS_P.
-- token is just a 32-byte value; where needed it is mapped into Fp/Fr.
+- token is a 32-byte value; where needed it is mapped into Fp/Fr.
 - new_pk is a 32-byte compressed Pallas public key, same format as EccKeypair.get_pk_from_sk().
 
 1. Generator API
@@ -58,7 +58,7 @@ proof_hex = get_zkproof_for_ii_blue_apply(
 Output
 
 - proof_hex: ZKProofHex  
-  HALO2 proof bytes encoded as hex (lowercase, no `0x`).
+  HALO2 proof bytes encoded as hex (lowercase, no prefix).
 
 2. Verifier API
 
@@ -107,7 +107,7 @@ new_pk (Bytes32)
 4. Proved statement (black-box)
 
 Public inputs
-  token             : Bytes32 (Fp / Fr interpreted inside the circuit)
+  token             : Bytes32 (Fp/Fr interpreted inside the circuit)
   new_pk            : compressed pk (Bytes32)
   master_seed_hash  : Bytes32
 
@@ -146,7 +146,7 @@ f(token, new_pk, master_seed_hash, sin_master_seed):
 
 5. Minimal usage example
 
-master_seed = os.urandom(32)   # then reduced mod PALLAS_P in helper
+master_seed = os.urandom(32)
 token0 = (0).to_bytes(32, "big")
 
 ms_hash_hex  = get_poseidon_hash(master_seed)
@@ -160,7 +160,7 @@ kp = EccKeypair()
 kp.set_sk(sk_bytes)
 pk_bytes = kp.get_pk_from_sk()
 
-# generator：直接给 bytes
+# generator: pass bytes directly
 proof_hex = get_zkproof_for_ii_blue_apply(
   master_seed,
   token0,
@@ -168,7 +168,7 @@ proof_hex = get_zkproof_for_ii_blue_apply(
   ms_hash,
 )
 
-# verifier：proof 用 hex，其它随意 bytes / hex
+# verifier: proof in hex, others may be bytes or hex
 ok = verify_zkproof_for_ii_blue_apply(
   proof_hex,
   token0,

@@ -14,15 +14,15 @@ API names
 0. Byte / hex conventions
 
 - All account/nonce/address/commitment inputs are conceptually 32-byte blobs.
-- Wrappers accept **either**:
-  - Bytes32: `bytes`/`bytearray` length 32
-  - Hex32:   `str` hex, length 64, with or without `0x`, any case
-- Internally, strings are normalized by stripping, removing `0x`, then `bytes.fromhex`.
+- Wrappers accept either:
+  - Bytes32: bytes/bytearray length 32
+  - Hex32:   hex string length 64, with or without prefix, any case
+- Internally, strings are normalized by stripping, removing prefix, then bytes.fromhex.
 - Generator returns proof as hex string; verifier accepts proof as bytes or hex string.
 
 Type aliases
 
-- Bytes32    = Python `bytes` length 32
+- Bytes32    = Python bytes length 32
 - Hex32      = hex string for 32 bytes (64 chars)
 - ZKProofHex = hex string for proof bytes
 
@@ -50,12 +50,12 @@ proof_hex = get_zkproof_for_acct_to_anon_tx(
   pin_anon_commit, # Bytes32 or Hex32
 )
 
-All five arguments are normalized到 32-byte big-endian bytes，然后喂给 Rust 侧 generator。
+All five arguments are normalized into 32-byte big-endian bytes, then passed into the Rust-side generator.
 
 Output
 
 - proof_hex: ZKProofHex  
-  HALO2 proof bytes encoded为 hex 字符串（lowercase, no `0x`）。
+  HALO2 proof bytes encoded as a hex string (lowercase, no prefix).
 
 2. Verifier API
 
@@ -69,16 +69,16 @@ ok_bool = verify_zkproof_for_acct_to_anon_tx(
   anon_commit,  # Bytes32 or Hex32
 )
 
-All inputs are normalized到 bytes 后传入 Rust verifier。
+All inputs are normalized into bytes before being passed into the Rust verifier.
 
 Output
 
 - ok_bool: bool  
   True iff proof verifies for the given public inputs.
 
-3. Proved statement（black-box）
+3. Proved statement (black-box)
 
-Public inputs（32B canonical < PALLAS_P）
+Public inputs (32B canonical < PALLAS_P)
   pin_val
   pin_nonce
   pin_addr
@@ -108,7 +108,7 @@ f(sin_sk, pin_val, pin_nonce, pin_addr, pin_anon_commit):
 
   return a and b
 
-Equality here is equality of 32-byte canonical Fp encodings（等价于 Fp 元素相等）。
+Equality here is equality of 32-byte canonical Fp encodings (equivalent to equality of Fp elements).
 
 4. Minimal usage example
 
@@ -130,7 +130,7 @@ anon_commit_hex = get_poseidon_hash(
 )
 anon_commit_bytes = bytes.fromhex(anon_commit_hex)
 
-# generator：建议用 bytes
+# generator: recommend using bytes
 proof_hex = get_zkproof_for_acct_to_anon_tx(
   sk_bytes,
   val_bytes,
@@ -139,7 +139,7 @@ proof_hex = get_zkproof_for_acct_to_anon_tx(
   anon_commit_bytes,
 )
 
-# verifier：可以混合 bytes / hex，这里演示都用 hex
+# verifier: bytes or hex can be mixed; here hex is used
 ok = verify_zkproof_for_acct_to_anon_tx(
   proof_hex,             # proof: hex
   val_bytes,             # or val_bytes.hex()

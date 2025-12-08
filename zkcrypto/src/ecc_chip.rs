@@ -17,7 +17,7 @@ pub const NUM_BITS: usize = 255;
 
 /// Expand a scalar into a little-endian bit array truncated to NUM_BITS.
 pub fn scalar_to_bits_le(s: &Scalar) -> [bool; NUM_BITS] {
-    let repr = s.to_repr(); // 32 字节 canonical 表示
+    let repr = s.to_repr();
     let bytes = repr.as_ref();
     let mut bits = [false; NUM_BITS];
     let mut i = 0usize;
