@@ -2217,7 +2217,6 @@ At the prototype level, `demo5.py` shows that this is practically implementable,
 ## 6. How to run the demos
 
 - The project targets a Linux environment, ideally Ubuntu 24.04.  
-
 - My own development environment was: Windows 11, WSL 2, Ubuntu 24.04.
 
 - You may need to install the following dependencies first:
@@ -2234,15 +2233,26 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-- You need a recent Rust toolchain and `maturin` if you want to rebuild the ZK module yourself
+- Install Rust toolchain + maturin (required for building the ZK module)
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+pip install maturin
+
+```
+
+- Build the ZK module with maturin:
+
 ```bash
 cd zkcrypto
-maturin develop -- release
+maturin develop --release
+cd ..
 ```
 
 
 - Then you can directly run the demos, for example:
 
 ```bash
-python demo/demo1_good.py
+python3 demo/demo1_good.py
 ```

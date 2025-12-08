@@ -352,30 +352,26 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-- You need a recent Rust toolchain and `maturin` if you want to rebuild the ZK module yourself
+- Install Rust toolchain + maturin (required for building the ZK module)
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+pip install maturin
+
+```
+
+- Build the ZK module with maturin:
+
 ```bash
 cd zkcrypto
-maturin develop -- release
+maturin develop --release
+cd ..
 ```
 
 
 - Then you can directly run the demos, for example:
 
 ```bash
-python demo/demo1_good.py
+python3 demo/demo1_good.py
 ```
-
-- The project targets a Linux environment, ideally Ubuntu 24.04.  
-- My own development environment was: Windows 11, WSL 2, Ubuntu 24.04.
-
-```bash
-# You may need to install the following dependencies first:
-sudo apt update && sudo apt upgrade
-sudo apt install -y python3.12 python3.12-venv python3.12-dev python3-pip
-
-# From the project root, create and activate a virtual environment:
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Then you can directly run the demos, for example:
-python demo/demo1_good.py
