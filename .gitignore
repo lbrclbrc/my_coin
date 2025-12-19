@@ -1,0 +1,41 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Rust build directory
+target/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+
+# Python packaging
+*.egg-info/
+*.whl
+
+# Test caches
+.pytest_cache/
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Others
+resume.md
+resume.pdf
+resume.md
+resume.pdf
+resume.yaml

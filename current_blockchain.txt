@@ -1,0 +1,69 @@
+# Blockchain dump
+# Summary: {"description": "Blockchain dump - one block per section", "num_blocks": 2, "order": "oldest->newest"}
+
+=== Block 0 ===
+{
+  "account_root": "09f4a2b513c4a04ee204b7cdf10f933a67762086b28725ffe2948b372a0fd5bb",
+  "block_hash": "53131ee9289edbec84c17f8a3de8a903635b96a9e8bfcbf89d3417e951b62b6f",
+  "commit_root": "0000000000000000000000000000000000000000000000000000000000000000",
+  "height": 0,
+  "lst_of_txs": [
+    {
+      "leaf": "01d9266001ec9a5833effc374446b4d42bce446300a8f0089badf853a9ec867e",
+      "payload": {
+        "applier_envelope_sig": "75a00156...a80c",
+        "cert": {
+          "clerk_id": "DemoClerk01",
+          "id": "01",
+          "pk": "22e6540dc52e2506d0b4a72f71859657c73a84c23709269cb183291665cd0604",
+          "signature": "f8503626...2910"
+        },
+        "clerk_envelope_sig": "2f1948a1...943f",
+        "clerk_id": "DemoClerk01",
+        "master_seed_hash": "21a6fffb0229b6b2064246a54f1d1295b542431e619b92417d1f58ac44f4aa58",
+        "new_blue_pk": "bd6109cf2246b39cf95e2a4223723600c335269d4419072d080184ba7fc856bd",
+        "nonce": 1,
+        "user_id": "01",
+        "version": 1,
+        "zk_proof": "5d41beff...df14"
+      },
+      "tx_type": "BlueApply1"
+    }
+  ],
+  "previous_block_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "tx_root": "01d9266001ec9a5833effc374446b4d42bce446300a8f0089badf853a9ec867e"
+}
+
+=== Block 1 ===
+{
+  "account_root": "078f576d6a817a1b68354b7b32fea308b106e3bdb30bd060c77b0161b568c090",
+  "block_hash": "f514ff4be1a95d217f440b1368a0b3cbca826148c3d9a240fc9c89d55633f1cd",
+  "commit_root": "0000000000000000000000000000000000000000000000000000000000000000",
+  "height": 1,
+  "lst_of_txs": [
+    {
+      "leaf": "3edee549f11501a8301b203f701ad6cfaad08e50948bd050372b93b6a11bdd95",
+      "payload": {
+        "applier_envelope_sig": "f403fa84...e718",
+        "cert": {
+          "clerk_id": "DemoClerk01",
+          "id": "01",
+          "pk": "2a909ad636b67aeca088252a3a2a7ca06cac9d78a62c79a3643668258aa32d09",
+          "signature": "85bf0219...d019"
+        },
+        "clerk_envelope_sig": "cd4b4e2f...d018",
+        "clerk_id": "DemoClerk01",
+        "master_seed_hash": "1884cc9a9f44d8c360ba0433716e7ce587681c920fa3c6e3e26c928d40e189d7",
+        "new_blue_pk": "d9f3c917c9d0ad9dfd8d740d41040c5aa9f4d039434fdb85872457542d3a239b",
+        "nonce": 1,
+        "user_id": "01",
+        "version": 1,
+        "zk_proof": "21936288...b21f"
+      },
+      "tx_type": "BlueApply1"
+    }
+  ],
+  "previous_block_hash": "53131ee9289edbec84c17f8a3de8a903635b96a9e8bfcbf89d3417e951b62b6f",
+  "tx_root": "1c69798d68b743b6e934d87204411807fe9bc2415ffbd73d6a7fefbad9fca6fb"
+}
+
